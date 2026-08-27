@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     asr_model: str = "small"
     asr_device: str = "auto"
     asr_compute_type: str = "auto"
-    allowed_origins: str = "http://localhost:3000"
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://nixclip.fnxtutors.chatgpt.site"
     ffmpeg_path: str | None = None
     ffprobe_path: str | None = None
 

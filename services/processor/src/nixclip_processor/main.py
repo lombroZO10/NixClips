@@ -32,6 +32,7 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["content-type"],
+    allow_private_network=True,
 )
 settings.projects_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/media", StaticFiles(directory=settings.projects_dir), name="media")
