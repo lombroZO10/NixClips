@@ -1,4 +1,4 @@
-from nixclip_processor.media import crop_geometry, timestamp, write_srt
+from nixclip_processor.media import crop_geometry, piecewise_focus_expression, timestamp, write_srt
 
 
 def test_srt_timestamp_is_stable() -> None:
@@ -31,3 +31,10 @@ def test_tall_source_crop_tracks_vertical_focus() -> None:
     bottom = crop_geometry(1080, 1920, 1, focus_y=.8)
     assert top[:2] == (1080, 1080)
     assert top[3] < bottom[3]
+
+
+def test_piecewise_focus_expression_is_bounded_and_interpolated() -> None:
+    expression = piecewise_focus_expression([(0, -20), (1, 500), (2, 1600)], 1314)
+    assert expression.startswith("max(0\\,min(1314\\,")
+    assert "if(lt(t\\,1.000)" in expression
+    assert expression.endswith(")")

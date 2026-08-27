@@ -36,12 +36,22 @@ def render_clip(
     dimensions = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080)}
     width, height = dimensions[preferences.aspect_ratio]
     if preferences.auto_reframe:
-        focus_x, focus_y, detected = detect_visual_focus(source, start_ms, end_ms)
+        trajectory = detect_focus_trajectory(source, start_ms, end_ms)
+        focus_x = statistics.median([point[1] for point in trajectory]) if trajectory else .5
+        focus_y = statistics.median([point[2] for point in trajectory]) if trajectory else .45
+        detected = bool(trajectory)
         source_width, source_height = source_dimensions(source)
         crop_width, crop_height, crop_x, crop_y = crop_geometry(
             source_width, source_height, width / height, focus_x, focus_y,
         )
-        filters = [f"crop={crop_width}:{crop_height}:{crop_x}:{crop_y}", f"scale={width}:{height}"]
+        if trajectory:
+            x_points = [(time, focus * source_width - crop_width / 2) for time, focus, _ in trajectory]
+            y_points = [(time, focus * source_height - crop_height / 2) for time, _, focus in trajectory]
+            x_filter = piecewise_focus_expression(x_points, source_width - crop_width)
+            y_filter = piecewise_focus_expression(y_points, source_height - crop_height)
+        else:
+            x_filter, y_filter = str(crop_x), str(crop_y)
+        filters = [f"crop={crop_width}:{crop_height}:{x_filter}:{y_filter}", f"scale={width}:{height}"]
         reframe_mode = "face-aware" if detected else "center"
     else:
         filters = [
@@ -87,19 +97,36 @@ def crop_geometry(
     return crop_width, crop_height, 0, max(0, min(y, source_height - crop_height))
 
 
-def detect_visual_focus(source: Path, start_ms: int, end_ms: int) -> tuple[float, float, bool]:
+def piecewise_focus_expression(points: list[tuple[float, float]], maximum: int) -> str:
+    """Build a bounded, linearly interpolated FFmpeg expression from focus keyframes."""
+    if not points:
+        return "0"
+    bounded = [(max(0.0, time), max(0.0, min(float(maximum), value))) for time, value in points]
+    if len(bounded) == 1:
+        return str(round(bounded[0][1]))
+    expression = str(round(bounded[-1][1]))
+    for index in range(len(bounded) - 2, -1, -1):
+        time, value = bounded[index]
+        next_time, next_value = bounded[index + 1]
+        delta = max(.001, next_time - time)
+        slope = (next_value - value) / delta
+        interpolated = f"{value:.3f}+({slope:.3f})*(t-{time:.3f})"
+        expression = f"if(lt(t\\,{next_time:.3f})\\,{interpolated}\\,{expression})"
+    return f"max(0\\,min({maximum}\\,{expression}))"
+
+
+def detect_focus_trajectory(source: Path, start_ms: int, end_ms: int) -> list[tuple[float, float, float]]:
     try:
         import cv2
     except ImportError:
-        return .5, .45, False
+        return []
     capture = cv2.VideoCapture(str(source))
     if not capture.isOpened():
-        return .5, .45, False
+        return []
     cascade = cv2.CascadeClassifier(str(Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"))
     duration = max(1, end_ms - start_ms)
     sample_count = min(48, max(12, duration // 850))
-    centers_x: list[float] = []
-    centers_y: list[float] = []
+    points: list[tuple[float, float, float]] = []
     try:
         for index in range(sample_count):
             position = start_ms + duration * (index + .5) / sample_count
@@ -115,13 +142,26 @@ def detect_visual_focus(source: Path, start_ms: int, end_ms: int) -> tuple[float
             if len(faces) == 0:
                 continue
             weighted = sorted(faces, key=lambda box: box[2] * box[3], reverse=True)[:3]
-            centers_x.append(sum(x + face_width / 2 for x, _, face_width, _ in weighted) / len(weighted) / scan.shape[1])
-            centers_y.append(sum(y + face_height / 2 for _, y, _, face_height in weighted) / len(weighted) / scan.shape[0])
+            center_x = sum(x + face_width / 2 for x, _, face_width, _ in weighted) / len(weighted) / scan.shape[1]
+            center_y = sum(y + face_height / 2 for _, y, _, face_height in weighted) / len(weighted) / scan.shape[0]
+            time = (position - start_ms) / 1000
+            points.append((time, center_x, center_y))
     finally:
         capture.release()
-    if not centers_x:
+    if not points:
+        return []
+    smoothed: list[tuple[float, float, float]] = [points[0]]
+    for time, center_x, center_y in points[1:]:
+        _, previous_x, previous_y = smoothed[-1]
+        smoothed.append((time, previous_x * .68 + center_x * .32, previous_y * .68 + center_y * .32))
+    return smoothed
+
+
+def detect_visual_focus(source: Path, start_ms: int, end_ms: int) -> tuple[float, float, bool]:
+    trajectory = detect_focus_trajectory(source, start_ms, end_ms)
+    if not trajectory:
         return .5, .45, False
-    return statistics.median(centers_x), statistics.median(centers_y), True
+    return statistics.median([point[1] for point in trajectory]), statistics.median([point[2] for point in trajectory]), True
 
 
 def write_srt(path: Path, transcript: list[dict], clip_start_ms: int, clip_end_ms: int) -> None:
