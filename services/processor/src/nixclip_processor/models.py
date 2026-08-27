@@ -42,12 +42,26 @@ class MediaSummary(ApiModel):
     audio_codec: str | None = None
 
 
+class ScoreBreakdown(ApiModel):
+    hook: int = Field(ge=0, le=100)
+    coherence: int = Field(ge=0, le=100)
+    value: int = Field(ge=0, le=100)
+    emotion: int = Field(ge=0, le=100)
+    delivery: int = Field(ge=0, le=100)
+    relevance: int = Field(ge=0, le=100)
+    penalties: int = Field(default=0, ge=0, le=100)
+
+
 class ClipResult(ApiModel):
     id: str
     title: str
     start_ms: int
     end_ms: int
     quality_score: int
+    score_breakdown: ScoreBreakdown | None = None
+    reasons: list[str] = Field(default_factory=list)
+    transcript_excerpt: str | None = None
+    reframe_mode: Literal["face-aware", "center", "fit"] | None = None
     output_url: str | None = None
 
 

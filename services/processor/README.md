@@ -11,3 +11,12 @@ python -m venv .venv
 ```
 
 O primeiro projeto baixa o modelo ASR configurado. O padrão `small` favorece qualidade em português; altere `NIXCLIP_ASR_MODEL` em `.env` quando houver GPU adequada.
+
+## Motor editorial v2
+
+- gera e compara diferentes inícios e finais em vez de aceitar a primeira janela possível;
+- favorece pausas naturais, pensamentos completos e fala clara;
+- remove cortes sobrepostos ou semanticamente repetidos;
+- devolve score detalhado e motivos editoriais para cada resultado;
+- reutiliza transcrições persistidas em novas tentativas;
+- usa detecção facial amostrada para posicionar o recorte vertical, com fallback central seguro.

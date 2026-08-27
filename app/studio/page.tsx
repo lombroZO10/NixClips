@@ -144,10 +144,11 @@ export default function StudioPage() {
               <div className="settings-title"><div><span className="step-label">02 — DIREÇÃO</span><h3>Configuração dos cortes</h3></div><Settings2 size={19} /></div>
               <label className="setting-field"><span>Idioma falado</span><div className="select-shell"><select value={preferences.language} onChange={(event) => setPreferences({ ...preferences, language: event.target.value as ProjectPreferences['language'] })}><option value="auto">Detectar automaticamente</option><option value="pt">Português</option><option value="en">Inglês</option><option value="es">Espanhol</option></select><ChevronDown size={15} /></div></label>
               <div className="setting-field"><span>Duração preferida</span><div className="segmented">{(['short','medium','long'] as const).map((length) => <button key={length} className={preferences.clipLength === length ? 'active' : ''} onClick={() => setPreferences({ ...preferences, clipLength: length })}>{length === 'short' ? '15–30s' : length === 'medium' ? '30–60s' : '60–90s'}</button>)}</div></div>
+              <div className="setting-field"><span>Quantidade de cortes</span><div className="segmented">{([5, 10, 15] as const).map((count) => <button key={count} className={preferences.clipCount === count ? 'active' : ''} onClick={() => setPreferences({ ...preferences, clipCount: count })}>{count}</button>)}</div></div>
               <div className="setting-field"><span>Formato de saída</span><div className="ratio-options">{(['9:16','1:1','16:9'] as const).map((ratio) => <button key={ratio} className={preferences.aspectRatio === ratio ? 'active' : ''} onClick={() => setPreferences({ ...preferences, aspectRatio: ratio })}><i className={`ratio ratio-${ratio.replace(':','')}`} />{ratio}</button>)}</div></div>
               <label className="setting-field"><span>Direção criativa <small>opcional</small></span><textarea value={preferences.prompt} onChange={(event) => setPreferences({ ...preferences, prompt: event.target.value })} placeholder="Ex.: encontre opiniões fortes e explicações que funcionem sem contexto..." /></label>
               <div className="toggle-row"><div><Captions size={17} /><span>Legendas dinâmicas</span></div><button className={preferences.captions ? 'on' : ''} onClick={() => setPreferences({ ...preferences, captions: !preferences.captions })}><i /></button></div>
-              <div className="toggle-row"><div><ScanFace size={17} /><span>Reenquadramento AI</span></div><button className={preferences.autoReframe ? 'on' : ''} onClick={() => setPreferences({ ...preferences, autoReframe: !preferences.autoReframe })}><i /></button></div>
+              <div className="toggle-row"><div><ScanFace size={17} /><span>Foco automático em rostos</span></div><button className={preferences.autoReframe ? 'on' : ''} onClick={() => setPreferences({ ...preferences, autoReframe: !preferences.autoReframe })}><i /></button></div>
             </aside>
           </div>
 
@@ -165,7 +166,17 @@ export default function StudioPage() {
                       <span className="clip-index">CLIP {String(index + 1).padStart(2, '0')}</span>
                       <span className="clip-score"><strong>{clip.qualityScore}</strong> score</span>
                     </div>
-                    <div className="result-copy"><strong>{clip.title}</strong><span>{Math.round((clip.endMs - clip.startMs) / 1000)} segundos</span></div>
+                    <div className="result-copy">
+                      <strong>{clip.title}</strong>
+                      <span>{Math.round((clip.endMs - clip.startMs) / 1000)} segundos{clip.reframeMode ? ` · ${clip.reframeMode === 'face-aware' ? 'foco em rostos' : clip.reframeMode === 'fit' ? 'quadro preservado' : 'foco central'}` : ''}</span>
+                      {clip.reasons && clip.reasons.length > 0 && <div className="reason-list">{clip.reasons.map((reason) => <small key={reason}>{reason}</small>)}</div>}
+                      {clip.scoreBreakdown && (
+                        <details className="score-details">
+                          <summary>Por que este corte?</summary>
+                          <div><span>Gancho <b>{clip.scoreBreakdown.hook}</b></span><span>Coerência <b>{clip.scoreBreakdown.coherence}</b></span><span>Valor <b>{clip.scoreBreakdown.value}</b></span><span>Entrega <b>{clip.scoreBreakdown.delivery}</b></span></div>
+                        </details>
+                      )}
+                    </div>
                     {clip.outputUrl && <a href={clip.outputUrl} download><Download size={14} /> Baixar MP4</a>}
                   </article>
                 ))}

@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
 import shutil
 from pathlib import Path
-from uuid import uuid4
 
 from .config import settings
+from .curation import curate_transcript
 from .media import probe_media, render_clip, write_srt
-from .models import ClipResult, ProjectJob, Stage
+from .models import ProjectJob, Stage
 from .repository import repository
-from .scoring import lexical_signals, score_candidate
 
 
 class Pipeline:
@@ -29,7 +27,7 @@ class Pipeline:
         if not job:
             return
         try:
-            if job.source_url and not job.source_path:
+            if job.source_url and (not job.source_path or not Path(job.source_path).exists()):
                 await self._update(job, Stage.IMPORT, 4, "Baixando o vídeo original")
                 job.source_path = str(await asyncio.to_thread(self._download, job))
 
@@ -38,11 +36,16 @@ class Pipeline:
             job.media = await asyncio.to_thread(probe_media, source)
             await repository.save(job)
 
-            await self._update(job, Stage.ANALYZE, 22, "Transcrevendo e alinhando a fala")
-            transcript = await asyncio.to_thread(self._transcribe, source, job.preferences.language)
             project_dir = settings.projects_dir / job.id
             project_dir.mkdir(parents=True, exist_ok=True)
-            (project_dir / "transcript.json").write_text(json.dumps(transcript, ensure_ascii=False, indent=2), encoding="utf-8")
+            transcript_path = project_dir / "transcript.json"
+            if transcript_path.exists():
+                await self._update(job, Stage.ANALYZE, 46, "Reutilizando a transcrição alinhada")
+                transcript = json.loads(transcript_path.read_text(encoding="utf-8"))
+            else:
+                await self._update(job, Stage.ANALYZE, 22, "Transcrevendo e alinhando a fala")
+                transcript = await asyncio.to_thread(self._transcribe, source, job.preferences.language)
+                transcript_path.write_text(json.dumps(transcript, ensure_ascii=False, indent=2), encoding="utf-8")
 
             await self._update(job, Stage.CURATE, 58, "Construindo narrativas e avaliando candidatos")
             candidates = self._curate(transcript, job)
@@ -58,9 +61,13 @@ class Pipeline:
                 output = project_dir / f"{clip.id}.mp4"
                 write_srt(subtitle, transcript, clip.start_ms, clip.end_ms)
                 try:
-                    await asyncio.to_thread(render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, subtitle)
+                    clip.reframe_mode = await asyncio.to_thread(
+                        render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, subtitle,
+                    )
                 except Exception:
-                    await asyncio.to_thread(render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, None)
+                    clip.reframe_mode = await asyncio.to_thread(
+                        render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, None,
+                    )
                 clip.output_url = f"/media/{job.id}/{output.name}"
                 progress = 74 + round(24 * (index + 1) / len(job.clips))
                 await self._update(job, Stage.RENDER, progress, f"Renderizando corte {index + 1} de {len(job.clips)}")
@@ -109,39 +116,8 @@ class Pipeline:
             for segment in segments if segment.text.strip()
         ]
 
-    def _curate(self, transcript: list[dict], job: ProjectJob) -> list[ClipResult]:
-        targets = {"short": (18, 34), "medium": (32, 62), "long": (58, 92)}
-        minimum, maximum = targets[job.preferences.clip_length]
-        candidates: list[ClipResult] = []
-        for start_index in range(len(transcript)):
-            parts: list[str] = []
-            start = transcript[start_index]["start"]
-            for end_index in range(start_index, len(transcript)):
-                segment = transcript[end_index]
-                duration = segment["end"] - start
-                parts.append(segment["text"])
-                if duration < minimum:
-                    continue
-                if duration > maximum:
-                    break
-                text = " ".join(parts)
-                score = score_candidate(lexical_signals(text, duration, job.preferences.prompt))
-                title = re.sub(r"\s+", " ", text).strip(" -")[:68]
-                candidates.append(ClipResult(
-                    id=f"clip_{uuid4().hex[:8]}", title=title + ("…" if len(text) > 68 else ""),
-                    start_ms=max(0, round(start * 1000) - 180), end_ms=round(segment["end"] * 1000) + 240,
-                    quality_score=score,
-                ))
-                break
-        ranked = sorted(candidates, key=lambda candidate: candidate.quality_score, reverse=True)
-        selected: list[ClipResult] = []
-        for candidate in ranked:
-            overlap = any(min(candidate.end_ms, current.end_ms) - max(candidate.start_ms, current.start_ms) > 7_000 for current in selected)
-            if not overlap:
-                selected.append(candidate)
-            if len(selected) >= job.preferences.clip_count:
-                break
-        return selected
+    def _curate(self, transcript: list[dict], job: ProjectJob):
+        return curate_transcript(transcript, job.preferences)
 
     def _download(self, job: ProjectJob) -> Path:
         import yt_dlp

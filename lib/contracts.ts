@@ -16,6 +16,18 @@ export interface ClipResult {
   startMs: number;
   endMs: number;
   qualityScore: number;
+  scoreBreakdown?: {
+    hook: number;
+    coherence: number;
+    value: number;
+    emotion: number;
+    delivery: number;
+    relevance: number;
+    penalties: number;
+  };
+  reasons?: string[];
+  transcriptExcerpt?: string;
+  reframeMode?: 'face-aware' | 'center' | 'fit';
   outputUrl?: string;
 }
 

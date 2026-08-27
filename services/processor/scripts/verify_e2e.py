@@ -29,7 +29,7 @@ def main() -> None:
     subtitle = args.output_dir / "verification.srt"
     output = args.output_dir / "verification.mp4"
     write_srt(subtitle, transcript, clip.start_ms, clip.end_ms)
-    render_clip(args.source, output, clip.start_ms, clip.end_ms, preferences, subtitle)
+    clip.reframe_mode = render_clip(args.source, output, clip.start_ms, clip.end_ms, preferences, subtitle)
     print(json.dumps({"transcriptSegments": len(transcript), "clip": clip.model_dump(by_alias=True), "output": str(output)}, ensure_ascii=False))
 
 

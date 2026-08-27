@@ -25,9 +25,11 @@ PENDING → IMPORT → ANALYZE → CURATE → REFINE → RENDER → COMPLETE
 
 1. `IMPORT`: recebe ou baixa a fonte e valida as faixas com FFprobe.
 2. `ANALYZE`: transcreve e produz um documento temporal persistente.
-3. `CURATE`: gera janelas narrativas, calcula sinais de qualidade e remove sobreposição.
-4. `REFINE`: ajusta os limites para preservar frases completas.
-5. `RENDER`: produz os formatos finais e legendas, sem alterar as decisões de curadoria.
+3. `CURATE`: gera múltiplas janelas narrativas, avalia gancho, coerência, valor, emoção, clareza e relevância, e remove candidatos semelhantes.
+4. `REFINE`: ajusta os limites usando pausas reais, pontuação e confiança das palavras.
+5. `RENDER`: detecta o foco dominante em rostos, compõe o formato escolhido e produz legendas alinhadas sem alterar as decisões editoriais.
+
+O ranking é explicável: cada `ClipResult` carrega dimensões, penalidades e os principais motivos da seleção. A transcrição temporal é reutilizada em novas tentativas para evitar repetir a etapa mais cara.
 
 O contrato persistido é a fonte da verdade. Preview, editor, exportação e histórico devem sempre derivar do mesmo projeto para impedir divergência entre UI e vídeo final.
 

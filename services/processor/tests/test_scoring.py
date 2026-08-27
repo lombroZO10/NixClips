@@ -1,4 +1,4 @@
-from nixclip_processor.scoring import CandidateSignals, lexical_signals, score_candidate
+from nixclip_processor.scoring import CandidateSignals, explain_score, lexical_signals, score_candidate
 
 
 def test_score_is_clamped_to_product_scale() -> None:
@@ -11,3 +11,13 @@ def test_complete_value_statement_scores_above_incomplete_fragment() -> None:
     fragment = lexical_signals("E então a gente foi fazendo", 9)
     assert score_candidate(complete) > score_candidate(fragment)
 
+
+def test_score_explanation_surfaces_strongest_dimensions() -> None:
+    signals = lexical_signals(
+        "Você sabe qual é o problema? O erro mais importante muda o resultado porque existe uma solução.",
+        34, pause_before=.8, pause_after=.9, average_confidence=.94,
+    )
+    details = explain_score(signals)
+    assert 0 <= details.score <= 99
+    assert details.dimensions["coherence"] >= 70
+    assert 1 <= len(details.reasons) <= 3

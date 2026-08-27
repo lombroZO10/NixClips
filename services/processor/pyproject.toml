@@ -1,12 +1,13 @@
 [project]
 name = "nixclip-processor"
-version = "0.1.0"
+version = "0.2.0"
 description = "Local-first media intelligence and rendering worker for NixClip"
 requires-python = ">=3.10,<3.13"
 dependencies = [
   "aiosqlite>=0.20,<1",
   "fastapi>=0.115,<1",
   "faster-whisper>=1.1,<2",
+  "opencv-python-headless>=4.10,<5",
   "pydantic-settings>=2.7,<3",
   "python-multipart>=0.0.20,<1",
   "uvicorn[standard]>=0.34,<1",
@@ -19,4 +20,3 @@ dev = ["httpx>=0.28,<1", "pytest>=8.3,<9", "pytest-asyncio>=0.25,<1"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-
