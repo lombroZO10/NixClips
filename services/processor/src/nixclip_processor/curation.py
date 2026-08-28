@@ -77,9 +77,17 @@ def build_candidates(transcript: list[dict], preferences: Preferences) -> list[E
             if len(text.split()) < 24:
                 continue
             after = _pause_after(transcript, end_index)
+            acoustic_energy = sum(float(segment.get("audio_energy", .5)) for segment in chosen_segments) / len(chosen_segments)
+            visual_activity = sum(float(segment.get("visual_activity", 0)) for segment in chosen_segments) / len(chosen_segments)
+            face_presence = sum(float(segment.get("face_presence", 0)) for segment in chosen_segments) / len(chosen_segments)
+            scene_change = sum(float(segment.get("scene_change", 0)) for segment in chosen_segments) / len(chosen_segments)
+            object_confidence = sum(float(segment.get("object_confidence", 0)) for segment in chosen_segments) / len(chosen_segments)
+            tracked_objects = sum(min(3, int(segment.get("tracked_objects", 0))) for segment in chosen_segments) / len(chosen_segments)
             signals = lexical_signals(
                 text, duration, preferences.prompt, pause_before=before, pause_after=after,
                 average_confidence=_word_confidence(chosen_segments),
+                audio_energy=acoustic_energy,
+                visual_activity=visual_activity, face_presence=face_presence, scene_change=scene_change,
             )
             details = explain_score(signals, bool(preferences.prompt.strip()))
             duration_fit = max(0, 1 - abs(duration - ideal) / max(ideal, 1))
@@ -95,7 +103,17 @@ def build_candidates(transcript: list[dict], preferences: Preferences) -> list[E
                 reasons=details.reasons,
                 transcript_excerpt=text[:360] + ("…" if len(text) > 360 else ""),
             )
-            candidates.append(EditorialCandidate(clip=clip, text=text, selection_score=details.score + duration_fit * 5 + boundary_bonus))
+            # Blend semantic/editorial score with the acoustic signal. This is
+            # intentionally bounded so a loud segment cannot beat a coherent one
+            # on volume alone.
+            multimodal_bonus = (
+                (acoustic_energy - .5) * 5 + visual_activity * 4 + face_presence * 3
+                + scene_change * 2 + object_confidence * 3 + min(1.0, tracked_objects / 2) * 2
+            )
+            candidates.append(EditorialCandidate(
+                clip=clip, text=text,
+                selection_score=details.score + duration_fit * 5 + boundary_bonus + multimodal_bonus,
+            ))
     return candidates
 
 

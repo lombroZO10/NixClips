@@ -88,7 +88,8 @@ def explain_score(signals: CandidateSignals, prompt_supplied: bool = False) -> S
 
 def lexical_signals(
     text: str, duration_seconds: float, prompt: str = "", *, pause_before: float = 0,
-    pause_after: float = 0, average_confidence: float = .8,
+    pause_after: float = 0, average_confidence: float = .8, audio_energy: float = .5,
+    visual_activity: float = .0, face_presence: float = .0, scene_change: float = .0,
 ) -> CandidateSignals:
     normalized = re.sub(r"\s+", " ", text.casefold()).strip()
     first = normalized[:190]
@@ -106,11 +107,19 @@ def lexical_signals(
     value += .06 if any(marker in normalized for marker in ("primeiro", "segundo", "por isso", "ou seja")) else 0
     emotion = .36 + .085 * sum(cue in normalized for cue in EMOTION_CUES)
     emotion += .07 if "!" in normalized else 0
+    # Acoustic emphasis is a useful second modality: energetic delivery often
+    # signals a punchline or a strong opinion, while very low energy is usually
+    # an intro, pause or tail that should rank lower.
+    emotion += .08 * (_clamp(audio_energy) - .5)
     prompt_terms = {term for term in re.findall(r"\b[\wÀ-ÿ'-]+\b", prompt.casefold()) if len(term) > 3}
     prompt_hits = sum(term in normalized for term in prompt_terms)
     prompt_relevance = .68 if not prompt_terms else .30 + .16 * min(prompt_hits, 4)
     density_quality = 1 - min(abs(density - 2.65) / 2.65, 1)
-    delivery = .35 + .36 * _clamp(average_confidence) + .23 * density_quality
+    visual_signal = .45 * _clamp(visual_activity) + .35 * _clamp(face_presence) + .20 * _clamp(scene_change)
+    delivery = (
+        .27 + .25 * _clamp(average_confidence) + .15 * density_quality
+        + .15 * _clamp(audio_energy) + .18 * visual_signal
+    )
     trigrams = [tuple(words[index:index + 3]) for index in range(max(0, len(words) - 2))]
     repetition = 0 if not trigrams else 1 - len(set(trigrams)) / len(trigrams)
     boundary_penalty = 0

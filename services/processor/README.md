@@ -12,6 +12,10 @@ python -m venv .venv
 
 O primeiro projeto baixa o modelo ASR configurado. O padrão `small` favorece qualidade em português; altere `NIXCLIP_ASR_MODEL` em `.env` quando houver GPU adequada.
 
+## Deploy do worker
+
+O `Dockerfile` instala FFmpeg e os extras de visão/diarização. Publique a imagem em um serviço que mantenha processo persistente (VPS, GPU cloud ou Space com Docker). Configure `NIXCLIP_ALLOWED_ORIGINS` para o domínio da Vercel e mantenha qualquer token/modelo como secret do provedor; nunca o envie ao frontend.
+
 ## Motor editorial v2
 
 - gera e compara diferentes inícios e finais em vez de aceitar a primeira janela possível;

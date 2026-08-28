@@ -5,8 +5,8 @@ O NixClip é dividido em duas superfícies com responsabilidades rígidas.
 ## Web
 
 - Vinext/React para landing page, Studio e editor.
-- D1/SQLite para usuários, projetos, estado dos jobs e metadados dos cortes.
-- R2 para fontes e resultados quando a instalação estiver hospedada.
+- Supabase Auth/Postgres para usuários, projetos, estado dos jobs e metadados dos cortes.
+- Supabase Storage (ou R2 posteriormente) para fontes e resultados.
 - O frontend usa os contratos de `lib/contracts.ts`; ele não inventa timestamps nem executa FFmpeg.
 
 ## Processor
