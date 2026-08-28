@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "vinext dev",
     "build": "vinext build",
+    "build:vercel": "vite build",
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern services/processor/.venv --ignore-pattern services/processor/data",
     "db:generate": "drizzle-kit generate",
@@ -23,6 +24,7 @@
     "ffprobe-static": "^3.1.0",
     "lucide-react": "^0.544.0",
     "next": "^16.3.3",
+    "nitro": "^3.0.260610-beta",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
