@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     visual_sample_fps: float = 1.5
     yolo_model: str = "yolo11n.pt"
     hf_token: str = ""
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://nixclip.fnxtutors.chatgpt.site"
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://nixclip.fnxtutors.chatgpt.site,https://nixclips-ruby.vercel.app"
     ffmpeg_path: str | None = None
     ffprobe_path: str | None = None
 
