@@ -41,6 +41,8 @@ next-env.d.ts
 # NixClip local processor
 /services/processor/.venv/
 /services/processor/data/
+/services/processor/secrets/*
+!/services/processor/secrets/.gitkeep
 /services/processor/src/*.egg-info/
 **/__pycache__/
 .pytest_cache/

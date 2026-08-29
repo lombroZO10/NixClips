@@ -17,3 +17,15 @@ def test_private_site_can_preflight_local_processor() -> None:
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == "https://nixclip.fnxtutors.chatgpt.site"
     assert response.headers["access-control-allow-private-network"] == "true"
+
+
+def test_health_exposes_sanitized_youtube_diagnostics(monkeypatch) -> None:
+    monkeypatch.setattr("nixclip_processor.main.youtube_downloader.provider_reachable", lambda: True)
+    with TestClient(app) as client:
+        response = client.get("/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "reason" in payload["youtube"]["cookies"]
+    assert payload["youtube"]["pot_provider"]["reachable"] is True
+    assert "cooldown_seconds" in payload["youtube"]

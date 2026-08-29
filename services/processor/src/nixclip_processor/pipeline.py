@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import shutil
 import subprocess
 import tempfile
 import time
@@ -17,6 +16,7 @@ from .models import ProjectJob, Stage
 from .repository import repository
 from .visual import analyze_video, enrich_transcript
 from .advanced import detect_objects, diarize, enrich_with_advanced_signals
+from .youtube_download import youtube_downloader
 
 
 class Pipeline:
@@ -212,21 +212,8 @@ class Pipeline:
         return curate_transcript(transcript, job.preferences)
 
     def _download(self, job: ProjectJob) -> Path:
-        import yt_dlp
-
         output = settings.uploads_dir / f"{job.id}.%(ext)s"
-        options = {
-            # 720p is enough for the vertical reframing output and avoids
-            # pulling multi-gigabyte 4K sources before analysis even starts.
-            "outtmpl": str(output), "format": "bv*[height<=720]+ba/b[height<=720]/b",
-            "merge_output_format": "mp4", "noplaylist": True, "quiet": True,
-            "ffmpeg_location": settings.ffmpeg,
-            "js_runtimes": {"node": {"path": shutil.which("node")}},
-            "remote_components": ["ejs:npm"],
-        }
-        with yt_dlp.YoutubeDL(options) as downloader:
-            info = downloader.extract_info(job.source_url, download=True)
-            return Path(downloader.prepare_filename(info)).with_suffix(".mp4") if info.get("requested_formats") else Path(downloader.prepare_filename(info))
+        return youtube_downloader.download(str(job.source_url), output, settings.ffmpeg)
 
 
 pipeline = Pipeline()

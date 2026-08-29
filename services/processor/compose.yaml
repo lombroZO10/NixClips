@@ -1,13 +1,32 @@
 services:
+  pot-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:1.3.2
+    container_name: nixclip-pot-provider
+    restart: unless-stopped
+    init: true
+    expose:
+      - "4416"
+    networks:
+      - nixclip-internal
+
   nixclip-worker:
     build: .
     container_name: nixclip-worker
     restart: unless-stopped
+    depends_on:
+      - pot-provider
     env_file:
       - .env
     ports:
       - "127.0.0.1:8788:8788"
     volumes:
       - ./data:/app/data
+      - ./secrets:/run/secrets/nixclip:ro
     mem_limit: 7g
     cpus: 2.0
+    networks:
+      - nixclip-internal
+
+networks:
+  nixclip-internal:
+    driver: bridge

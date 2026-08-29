@@ -14,6 +14,7 @@ from .config import settings
 from .models import Preferences, ProjectJob, Stage, UrlProjectRequest
 from .pipeline import pipeline
 from .repository import repository
+from .youtube_download import inspect_cookie_file, youtube_downloader
 
 
 @asynccontextmanager
@@ -44,7 +45,30 @@ def public_job(job: ProjectJob) -> dict:
 
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "ok", "service": "nixclip-processor", "version": app.version}
+    download = youtube_downloader.health.snapshot()
+    cookies = inspect_cookie_file(settings.youtube_cookie_file)
+    provider_reachable = await asyncio.to_thread(youtube_downloader.provider_reachable)
+    degraded = download["status"] in {"degraded", "cooldown"} or not cookies.valid or provider_reachable is False
+    return {
+        "status": "degraded" if degraded else "ok",
+        "service": "nixclip-processor",
+        "version": app.version,
+        "youtube": {
+            **download,
+            "cookies": {
+                "configured": cookies.configured,
+                "valid": cookies.valid,
+                "reason": cookies.reason,
+                "expires_at": cookies.expires_at,
+            },
+            "pot_provider": {
+                "configured": bool(settings.youtube_pot_provider_url),
+                "reachable": provider_reachable,
+            },
+            "clients": settings.youtube_clients,
+            "concurrency_limit": max(1, settings.youtube_download_concurrency),
+        },
+    }
 
 
 @app.post("/api/v1/projects/upload", status_code=202)

@@ -42,6 +42,17 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://nixclip.fnxtutors.chatgpt.site,https://nixclips-ruby.vercel.app"
     ffmpeg_path: str | None = None
     ffprobe_path: str | None = None
+    youtube_cookie_file: Path | None = None
+    youtube_player_clients: str = "mweb,web_embedded,tv,android"
+    youtube_pot_provider_url: str = "http://127.0.0.1:4416"
+    youtube_download_concurrency: int = 1
+    youtube_download_delay: float = 15.0
+    youtube_sleep_requests: float = 5.0
+    youtube_limit_rate: int = 2_000_000
+    youtube_max_attempts: int = 6
+    youtube_backoff_base: float = 5.0
+    youtube_backoff_cap: float = 120.0
+    youtube_rate_limit_cooldown: float = 600.0
 
     @property
     def uploads_dir(self) -> Path:
@@ -72,6 +83,10 @@ class Settings(BaseSettings):
     @property
     def origins(self) -> list[str]:
         return [origin.strip() for origin in self.allowed_origins.split(",") if origin.strip()]
+
+    @property
+    def youtube_clients(self) -> list[str]:
+        return [client.strip() for client in self.youtube_player_clients.split(",") if client.strip()]
 
 
 settings = Settings()
