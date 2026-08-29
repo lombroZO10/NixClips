@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { ProjectJob, ProjectPreferences } from '../../lib/contracts';
 import { createFileProject, createUrlProject, getProject, processorHealth } from '../../lib/processor-client';
+import { connectYouTube } from '../../lib/supabase-browser';
 import './studio.css';
 
 const defaultPreferences: ProjectPreferences = {
@@ -31,6 +32,7 @@ export default function StudioPage() {
   const [preferences, setPreferences] = useState(defaultPreferences);
   const [job, setJob] = useState<ProjectJob | null>(null);
   const [error, setError] = useState('');
+  const [youtubeBusy, setYoutubeBusy] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -70,6 +72,12 @@ export default function StudioPage() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível criar o projeto.'); }
   }
 
+  async function startYouTubeConnection() {
+    setYoutubeBusy(true); setError('');
+    try { await connectYouTube(); }
+    catch (cause) { setYoutubeBusy(false); setError(cause instanceof Error ? cause.message : 'Não foi possível conectar o YouTube.'); }
+  }
+
   const busy = job && job.stage !== 'complete' && job.stage !== 'failed';
 
   return (
@@ -80,6 +88,7 @@ export default function StudioPage() {
           <a className="active" href="#"><LayoutDashboard size={18} /><span>Novo projeto</span></a>
           <a href="#recentes"><History size={18} /><span>Projetos</span></a>
           <a href="#templates"><Clapperboard size={18} /><span>Templates</span></a>
+          <button className="youtube-connect" type="button" onClick={startYouTubeConnection} disabled={youtubeBusy}><Link2 size={18} /><span>{youtubeBusy ? 'Abrindo Google…' : 'Conectar YouTube'}</span></button>
         </nav>
         <div className="sidebar-bottom">
           <a href="#settings"><Settings2 size={18} /><span>Configurações</span></a>
