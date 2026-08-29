@@ -11,7 +11,7 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const client = getSupabaseBrowserClient();
-    if (!client) { setError('Supabase não configurado.'); return; }
+    if (!client) { window.setTimeout(() => setError('Supabase não configurado.'), 0); return; }
     // createBrowserClient handles the PKCE code exchange during initialization.
     // Calling exchangeCodeForSession here again would consume the verifier twice.
     client.auth.getSession().then(({ data, error: sessionError }) => {

@@ -10,7 +10,7 @@
     "build": "vinext build",
     "build:vercel": "vite build",
     "start": "vinext start",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern services/processor/.venv --ignore-pattern services/processor/data",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vercel --ignore-pattern services/processor/.venv --ignore-pattern services/processor/data",
     "db:generate": "drizzle-kit generate",
     "processor:dev": ".\\services\\processor\\.venv\\Scripts\\python -m uvicorn nixclip_processor.main:app --app-dir services/processor/src --host 127.0.0.1 --port 8788",
     "processor:test": ".\\services\\processor\\.venv\\Scripts\\python -m pytest services/processor/tests",
