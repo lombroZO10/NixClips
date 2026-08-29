@@ -12,10 +12,11 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const client = getSupabaseBrowserClient();
     if (!client) { setError('Supabase não configurado.'); return; }
-    const code = new URLSearchParams(window.location.search).get('code');
-    if (!code) { setError('Código de autorização ausente.'); return; }
-    client.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
-      if (exchangeError) { setError(exchangeError.message); return; }
+    // createBrowserClient handles the PKCE code exchange during initialization.
+    // Calling exchangeCodeForSession here again would consume the verifier twice.
+    client.auth.getSession().then(({ data, error: sessionError }) => {
+      if (sessionError) { setError(sessionError.message); return; }
+      if (!data.session) { setError('A sessão do Google não foi criada. Tente conectar novamente.'); return; }
       router.replace('/studio?youtube=connected');
     });
   }, [router]);
