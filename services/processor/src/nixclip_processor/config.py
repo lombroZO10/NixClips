@@ -8,7 +8,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 PROCESSOR_DIR = Path(__file__).resolve().parents[2]
-REPOSITORY_DIR = PROCESSOR_DIR.parents[1]
+# In Docker the processor is installed directly under /app; locally it lives
+# under services/processor and needs the workspace root for bundled binaries.
+REPOSITORY_DIR = (
+    PROCESSOR_DIR.parents[1]
+    if len(PROCESSOR_DIR.parents) > 1 and (PROCESSOR_DIR / "pyproject.toml").exists()
+    else PROCESSOR_DIR
+)
 
 
 def bundled_binary(package: str, executable: str) -> str | None:
