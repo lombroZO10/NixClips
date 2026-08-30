@@ -1,16 +1,16 @@
 'use client';
-/* eslint-disable @next/next/no-html-link-for-pages */
 
 import Link from 'next/link';
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react';
 import {
-  ArrowLeft, ArrowRight, Captions, Check, ChevronDown, CircleGauge, Clapperboard, Download,
-  FileVideo2, FolderOpen, Frame, History, LayoutDashboard, Link2, LoaderCircle,
+  ArrowLeft, ArrowRight, Captions, Check, ChevronDown, CircleGauge, Download,
+  FileVideo2, FolderOpen, Frame, Link2, LoaderCircle,
   Menu, Play, ScanFace, Settings2, Sparkles, Upload, WandSparkles, X,
 } from 'lucide-react';
 import type { ProjectJob, ProjectPreferences } from '../../lib/contracts';
 import { createFileProject, createUrlProject, getProject, processorHealth } from '../../lib/processor-client';
 import { getSupabaseBrowserClient } from '../../lib/supabase-browser';
+import { StudioSidebar } from './studio-sidebar';
 import './studio.css';
 
 const defaultPreferences: ProjectPreferences = {
@@ -90,18 +90,7 @@ export default function StudioPage() {
 
   return (
     <main className="studio-shell">
-      <aside className="studio-sidebar">
-        <Link className="studio-brand" href="/"><span><Play size={12} fill="currentColor" /></span><strong>NixClip</strong></Link>
-        <nav>
-          <a className="active" href="#"><LayoutDashboard size={18} /><span>Novo projeto</span></a>
-          <a href="/studio/projects" onClick={(event) => { event.preventDefault(); window.location.assign('/studio/projects'); }}><History size={18} /><span>Projetos</span></a>
-          <a href="/studio/templates" onClick={(event) => { event.preventDefault(); window.location.assign('/studio/templates'); }}><Clapperboard size={18} /><span>Templates</span></a>
-        </nav>
-        <div className="sidebar-bottom">
-          <a href="#settings"><Settings2 size={18} /><span>Configurações</span></a>
-          <button className="user-card" onClick={signOut} title="Sair da conta"><span>{accountEmail.slice(0, 2).toUpperCase() || 'NC'}</span><div><strong>{accountEmail || 'Workspace pessoal'}</strong><small>Sair da conta</small></div></button>
-        </div>
-      </aside>
+      <StudioSidebar active="new" accountEmail={accountEmail} onSignOut={signOut} />
 
       <section className="studio-workspace">
         <header className="studio-header">

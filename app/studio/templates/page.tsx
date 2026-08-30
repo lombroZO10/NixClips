@@ -1,10 +1,11 @@
 'use client';
-/* eslint-disable @next/next/no-html-link-for-pages, @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Check, ChevronDown, Clapperboard, FolderOpen, ImagePlus, LayoutDashboard, Palette, Play, Save, Sparkles, Type } from 'lucide-react';
+import { Check, ChevronDown, Palette, Save, Sparkles, Type } from 'lucide-react';
 import '../studio.css';
+import { StudioSidebar } from '../studio-sidebar';
 
 type Settings = Record<string, string | number | boolean>;
 type Template = { id?: string; name: string; settings: Settings };
@@ -25,7 +26,7 @@ export default function TemplatesPage() {
   const settings = template.settings; const position = String(settings.captionPosition);
   const captionStyle = { fontFamily: String(settings.font), fontSize: `clamp(16px, ${Math.max(2, Number(settings.fontSize) / 9)}vw, 34px)`, color: String(settings.captionColor), WebkitTextStroke: `${Number(settings.captionOutline)}px ${String(settings.outlineColor)}`, textShadow: `0 ${Number(settings.captionShadow) * 2}px ${Number(settings.captionShadow) * 3}px rgba(0,0,0,.85)` };
   return <main className="studio-shell">
-    <aside className="studio-sidebar template-sidebar"><a className="studio-brand" href="/"><span><Play size={12} fill="currentColor" /></span><strong>NixClip</strong></a><nav><a href="/studio" onClick={(event) => { event.preventDefault(); window.location.assign('/studio'); }}><LayoutDashboard size={18} /><span>Novo projeto</span></a><a href="/studio/projects" onClick={(event) => { event.preventDefault(); window.location.assign('/studio/projects'); }}><FolderOpen size={18} /><span>Projetos</span></a><a className="active" href="/studio/templates" onClick={(event) => { event.preventDefault(); window.location.assign('/studio/templates'); }}><Clapperboard size={18} /><span>Templates</span></a><a href="/studio/assets" onClick={(event) => { event.preventDefault(); window.location.assign('/studio/assets'); }}><ImagePlus size={18} /><span>Ativos</span></a></nav></aside>
+    <StudioSidebar active="templates" />
     <section className="studio-workspace project-detail"><header className="studio-header"><Link className="back-link" href="/studio">Studio</Link><div className="engine-status"><i /><span>Modelo de marca</span></div></header><div className="studio-content templates-page">
       <div className="project-detail-heading"><div><span className="step-label">IDENTIDADE</span><h1>Modelos de marca</h1><p>Defina uma vez o padrão visual e aplique em todos os cortes.</p></div><button className="generate-button" onClick={save}><Save size={16} /> {saved ? 'Modelo salvo' : 'Salvar modelo'}</button></div>
       {error && <div className="studio-error">{error}</div>}
