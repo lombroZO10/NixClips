@@ -15,13 +15,13 @@ export async function createFileProject(file: File, preferences: ProjectPreferen
   const form = new FormData();
   form.append('file', file);
   form.append('preferences', JSON.stringify(preferences));
-  const response = await fetch(`${PROCESSOR_URL}/api/v1/projects/upload`, { method: 'POST', body: form });
+  const response = await fetch('/api/projects', { method: 'POST', body: form });
   if (!response.ok) throw new Error(await readableError(response));
   return normalizeJob(await response.json() as ProjectJob);
 }
 
 export async function createUrlProject(url: string, preferences: ProjectPreferences): Promise<ProjectJob> {
-  const response = await fetch(`${PROCESSOR_URL}/api/v1/projects/url`, {
+  const response = await fetch('/api/projects', {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url, preferences }),
   });
   if (!response.ok) throw new Error(await readableError(response));
@@ -29,7 +29,7 @@ export async function createUrlProject(url: string, preferences: ProjectPreferen
 }
 
 export async function getProject(id: string): Promise<ProjectJob> {
-  const response = await fetch(`${PROCESSOR_URL}/api/v1/projects/${id}`, { cache: 'no-store' });
+  const response = await fetch(`/api/projects/${id}`, { cache: 'no-store' });
   if (!response.ok) throw new Error(await readableError(response));
   return normalizeJob(await response.json() as ProjectJob);
 }

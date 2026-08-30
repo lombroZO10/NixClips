@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { ProjectJob, ProjectPreferences } from '../../lib/contracts';
 import { createFileProject, createUrlProject, getProject, processorHealth } from '../../lib/processor-client';
+import { getSupabaseBrowserClient } from '../../lib/supabase-browser';
 import './studio.css';
 
 const defaultPreferences: ProjectPreferences = {
@@ -31,12 +32,22 @@ export default function StudioPage() {
   const [preferences, setPreferences] = useState(defaultPreferences);
   const [job, setJob] = useState<ProjectJob | null>(null);
   const [error, setError] = useState('');
+  const [accountEmail, setAccountEmail] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
     processorHealth(controller.signal).then(setOnline);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    getSupabaseBrowserClient()?.auth.getUser().then(({ data }) => setAccountEmail(data.user?.email ?? ''));
+  }, []);
+
+  async function signOut() {
+    await getSupabaseBrowserClient()?.auth.signOut();
+    window.location.assign('/');
+  }
 
   useEffect(() => {
     if (!job || job.stage === 'complete' || job.stage === 'failed') return;
@@ -83,7 +94,7 @@ export default function StudioPage() {
         </nav>
         <div className="sidebar-bottom">
           <a href="#settings"><Settings2 size={18} /><span>Configurações</span></a>
-          <div className="user-card"><span>NT</span><div><strong>Workspace pessoal</strong><small>Plano local</small></div></div>
+          <button className="user-card" onClick={signOut} title="Sair da conta"><span>{accountEmail.slice(0, 2).toUpperCase() || 'NC'}</span><div><strong>{accountEmail || 'Workspace pessoal'}</strong><small>Sair da conta</small></div></button>
         </div>
       </aside>
 

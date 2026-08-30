@@ -41,6 +41,7 @@ create table if not exists public.clips (
 
 create index if not exists projects_owner_created_idx on public.projects(owner_id, created_at desc);
 create index if not exists clips_project_score_idx on public.clips(project_id, quality_score desc);
+create unique index if not exists clips_project_identity_idx on public.clips(project_id, title, start_ms);
 
 alter table public.profiles enable row level security;
 alter table public.projects enable row level security;
