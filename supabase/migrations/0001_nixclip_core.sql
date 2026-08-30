@@ -68,9 +68,11 @@ on conflict (id) do nothing;
 drop policy if exists "brand assets storage select" on storage.objects;
 drop policy if exists "brand assets storage insert" on storage.objects;
 drop policy if exists "brand assets storage delete" on storage.objects;
-create policy "brand assets storage select" on storage.objects for select using (bucket_id = 'brand-assets' and owner_id = auth.uid());
-create policy "brand assets storage insert" on storage.objects for insert with check (bucket_id = 'brand-assets' and owner_id = auth.uid());
-create policy "brand assets storage delete" on storage.objects for delete using (bucket_id = 'brand-assets' and owner_id = auth.uid());
+-- storage.objects.owner_id is text in the current Supabase Storage schema;
+-- auth.uid() is uuid. Cast explicitly so this remains compatible with it.
+create policy "brand assets storage select" on storage.objects for select using (bucket_id = 'brand-assets' and owner_id = auth.uid()::text);
+create policy "brand assets storage insert" on storage.objects for insert with check (bucket_id = 'brand-assets' and owner_id = auth.uid()::text);
+create policy "brand assets storage delete" on storage.objects for delete using (bucket_id = 'brand-assets' and owner_id = auth.uid()::text);
 
 alter table public.profiles enable row level security;
 alter table public.projects enable row level security;
