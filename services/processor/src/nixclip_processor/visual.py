@@ -16,6 +16,14 @@ def analyze_video(source: Path, duration_ms: int, sample_fps: float = .5) -> dic
         import cv2
     except ImportError:
         return {"samples": [], "scene_cuts": []}
+    required_api = (
+        "VideoCapture", "CascadeClassifier", "resize", "cvtColor", "absdiff",
+        "CAP_PROP_FPS", "COLOR_BGR2GRAY", "data",
+    )
+    if any(not hasattr(cv2, name) for name in required_api):
+        # OpenCV wheels share the cv2 namespace. A partially overwritten wheel
+        # must degrade to signal-free analysis instead of failing the whole job.
+        return {"samples": [], "scene_cuts": [], "backend": "unavailable"}
     capture = cv2.VideoCapture(str(source))
     if not capture.isOpened():
         return {"samples": [], "scene_cuts": []}

@@ -76,11 +76,16 @@ class Pipeline:
                 visual_task = asyncio.create_task(asyncio.to_thread(
                     analyze_video, source, job.media.duration_ms if job.media else 0, settings.visual_sample_fps,
                 ))
+                started_at = time.monotonic()
                 while not visual_task.done():
                     try:
                         await asyncio.wait_for(asyncio.shield(visual_task), timeout=5)
                     except asyncio.TimeoutError:
-                        await self._update(job, Stage.ANALYZE, 50, "Analisando cenas, movimento e rostos")
+                        elapsed = int(time.monotonic() - started_at)
+                        await self._update(
+                            job, Stage.ANALYZE, 50,
+                            f"Analisando cenas, movimento e rostos · {elapsed // 60:02d}:{elapsed % 60:02d}",
+                        )
                 visual = await visual_task
                 visual_path.write_text(json.dumps(visual, ensure_ascii=False), encoding="utf-8")
             transcript = enrich_transcript(transcript, visual)

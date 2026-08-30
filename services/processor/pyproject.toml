@@ -7,7 +7,9 @@ dependencies = [
   "aiosqlite>=0.20,<1",
   "fastapi>=0.115,<1",
   "faster-whisper>=1.1,<2",
-  "opencv-python-headless>=4.10,<5",
+  # Ultralytics depends on opencv-python. Using the same distribution avoids
+  # both wheels overwriting the shared cv2 package during Docker builds.
+  "opencv-python>=4.10,<5",
   "pydantic-settings>=2.7,<3",
   "python-multipart>=0.0.20,<1",
   "uvicorn[standard]>=0.34,<1",

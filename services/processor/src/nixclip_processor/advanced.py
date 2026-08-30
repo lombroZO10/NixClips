@@ -5,7 +5,7 @@ from pathlib import Path
 from .config import settings
 
 
-def detect_objects(source: Path, duration_ms: int, sample_fps: float = 1.0) -> dict:
+def detect_objects(source: Path, duration_ms: int, sample_fps: float = .5) -> dict:
     """Run optional YOLO tracking, with a deterministic empty fallback.
 
     Ultralytics is intentionally lazy-loaded: a private CPU install does not
@@ -17,28 +17,40 @@ def detect_objects(source: Path, duration_ms: int, sample_fps: float = 1.0) -> d
         return {"backend": "fallback", "tracks": []}
     model_name = settings.yolo_model
     try:
+        import cv2
+
         model = YOLO(model_name)
-        result = model.track(source=str(source), stream=True, persist=True, verbose=False, conf=.35)
+        capture = cv2.VideoCapture(str(source))
+        if not capture.isOpened():
+            return {"backend": "fallback", "tracks": [], "error": "video unavailable"}
         tracks: list[dict] = []
-        for index, frame in enumerate(result):
-            timestamp = index / max(sample_fps, .1)
-            if timestamp * 1000 > duration_ms:
-                break
-            boxes = getattr(frame, "boxes", None)
-            if boxes is None:
-                continue
-            names = getattr(frame, "names", {})
-            for box in boxes:
-                xyxy = box.xyxy[0].tolist()
-                cls = int(box.cls[0]) if box.cls is not None else -1
-                track_id = int(box.id[0]) if box.id is not None else None
-                tracks.append({
-                    "time": round(timestamp, 3), "id": track_id, "class": names.get(cls, str(cls)),
-                    "confidence": round(float(box.conf[0]), 4),
-                    "center_x": round(((xyxy[0] + xyxy[2]) / 2) / max(frame.orig_shape[1], 1), 4),
-                    "center_y": round(((xyxy[1] + xyxy[3]) / 2) / max(frame.orig_shape[0], 1), 4),
-                    "area": round((xyxy[2] - xyxy[0]) * (xyxy[3] - xyxy[1]) / max(frame.orig_shape[0] * frame.orig_shape[1], 1), 5),
-                })
+        interval_ms = max(500, round(1000 / max(sample_fps, .1)))
+        try:
+            for position_ms in range(0, max(0, duration_ms), interval_ms):
+                capture.set(cv2.CAP_PROP_POS_MSEC, position_ms)
+                ok, image = capture.read()
+                if not ok:
+                    break
+                results = model.track(source=image, persist=True, verbose=False, conf=.35)
+                frame = results[0] if results else None
+                boxes = getattr(frame, "boxes", None)
+                if boxes is None:
+                    continue
+                names = getattr(frame, "names", {})
+                for box in boxes:
+                    xyxy = box.xyxy[0].tolist()
+                    cls = int(box.cls[0]) if box.cls is not None else -1
+                    track_id = int(box.id[0]) if box.id is not None else None
+                    tracks.append({
+                        "time": round(position_ms / 1000, 3), "id": track_id,
+                        "class": names.get(cls, str(cls)),
+                        "confidence": round(float(box.conf[0]), 4),
+                        "center_x": round(((xyxy[0] + xyxy[2]) / 2) / max(frame.orig_shape[1], 1), 4),
+                        "center_y": round(((xyxy[1] + xyxy[3]) / 2) / max(frame.orig_shape[0], 1), 4),
+                        "area": round((xyxy[2] - xyxy[0]) * (xyxy[3] - xyxy[1]) / max(frame.orig_shape[0] * frame.orig_shape[1], 1), 5),
+                    })
+        finally:
+            capture.release()
         return {"backend": "yolo-track", "tracks": tracks}
     except Exception as error:  # optional accelerator/model failure must not stop a job
         return {"backend": "fallback", "tracks": [], "error": str(error)}
