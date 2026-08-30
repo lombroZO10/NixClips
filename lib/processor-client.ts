@@ -34,6 +34,9 @@ export async function getProject(id: string): Promise<ProjectJob> {
   return normalizeJob(await response.json() as ProjectJob);
 }
 
+export interface ProjectSummary { id: string; title: string; source_name?: string | null; stage: ProjectJob['stage']; progress: number; message: string; error?: string | null; created_at: string; clipCount: number; }
+export async function listProjects(): Promise<ProjectSummary[]> { const response = await fetch('/api/projects', { cache: 'no-store' }); if (!response.ok) throw new Error(await readableError(response)); return await response.json() as ProjectSummary[]; }
+
 function normalizeJob(job: ProjectJob): ProjectJob {
   return {
     ...job,

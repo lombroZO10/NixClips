@@ -3,6 +3,7 @@ import {
   ArrowRight, Captions, Check, Clapperboard, Frame, Link2, Play,
   ScanFace, Sparkles, Upload, WandSparkles,
 } from 'lucide-react';
+import { getSupabaseServerClient } from '../lib/supabase-server';
 
 const intelligence = [
   { icon: Clapperboard, label: 'Cortes por contexto' },
@@ -11,7 +12,9 @@ const intelligence = [
   { icon: Frame, label: 'Reframe 9:16' },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await getSupabaseServerClient();
+  const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
   return (
     <main className="landing-shell">
       <div className="ambient ambient-violet" /><div className="ambient ambient-red" /><div className="noise" />
@@ -23,7 +26,7 @@ export default function Home() {
         <nav className="main-nav" aria-label="Navegação principal">
           <a href="#motor">Motor AI</a><a href="#workflow">Workflow</a><a href="#recursos">Recursos</a>
         </nav>
-        <div className="header-actions"><a className="header-login" href="/login">Entrar</a><a className="header-cta" href="/signup">Criar conta grátis <ArrowRight size={16} /></a></div>
+        <div className="header-actions">{user ? <><a className="header-login" href="/auth/signout">Sair</a><a className="header-cta" href="/studio">Abrir Studio <ArrowRight size={16} /></a></> : <><a className="header-login" href="/login">Entrar</a><a className="header-cta" href="/signup">Criar conta grátis <ArrowRight size={16} /></a></>}</div>
       </header>
 
       <section className="hero-section">

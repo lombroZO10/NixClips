@@ -29,3 +29,13 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ detail: 'Projeto criado, mas não foi possível registrar sua propriedade.' }, { status: 500 });
   return NextResponse.json({ ...job, id: saved.id, processorProjectId: job.id }, { status: 202 });
 }
+
+export async function GET() {
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) return NextResponse.json({ detail: 'Autenticação indisponível.' }, { status: 503 });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ detail: 'Faça login.' }, { status: 401 });
+  const { data, error } = await supabase.from('projects').select('id,title,source_name,stage,progress,message,error,created_at,updated_at,clips(count)').eq('owner_id', user.id).order('created_at', { ascending: false });
+  if (error) return NextResponse.json({ detail: 'Não foi possível carregar seus projetos.' }, { status: 500 });
+  return NextResponse.json((data ?? []).map((project: Record<string, unknown>) => ({ ...project, clipCount: Array.isArray(project.clips) ? (project.clips[0] as { count?: number })?.count ?? 0 : 0 })));
+}
