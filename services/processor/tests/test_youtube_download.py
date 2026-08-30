@@ -10,6 +10,7 @@ from nixclip_processor.youtube_download import (
     classify_download_error,
     exponential_backoff,
     inspect_cookie_file,
+    writable_cookie_copy,
 )
 
 
@@ -52,6 +53,21 @@ def test_cookie_inspection_rejects_expired_and_malformed_files(tmp_path: Path) -
         encoding="utf-8",
     )
     assert inspect_cookie_file(expired, now=101).reason == "expired_or_empty"
+
+
+def test_cookie_secret_is_copied_to_a_writable_disposable_file(tmp_path: Path) -> None:
+    secret = tmp_path / "youtube.cookies.txt"
+    secret.write_text("# Netscape HTTP Cookie File\n", encoding="utf-8")
+    secret.chmod(0o400)
+
+    with writable_cookie_copy(secret) as temporary:
+        assert temporary != secret
+        assert temporary.read_text(encoding="utf-8") == secret.read_text(encoding="utf-8")
+        temporary.write_text("updated", encoding="utf-8")
+        temporary_path = temporary
+
+    assert not temporary_path.exists()
+    assert secret.read_text(encoding="utf-8") == "# Netscape HTTP Cookie File\n"
 
 
 def test_backoff_is_bounded_and_has_jitter() -> None:

@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import random
 import re
 import shutil
 import socket
+import tempfile
 import threading
 import time
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
@@ -123,6 +126,20 @@ def _safe_error(error: BaseException | str) -> str:
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+@contextmanager
+def writable_cookie_copy(source: Path):
+    """Give yt-dlp a private writable jar while keeping the mounted secret read-only."""
+    descriptor, temporary_name = tempfile.mkstemp(prefix="nixclip-youtube-", suffix=".cookies.txt")
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        shutil.copyfile(source, temporary)
+        temporary.chmod(0o600)
+        yield temporary
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 class DownloadHealth:
@@ -267,14 +284,17 @@ class YoutubeDownloader:
             "file_access_retries": 2,
             "socket_timeout": 30,
         }
-        # Android's Innertube client does not support account cookies. It is
-        # retained only as a public-video fallback.
-        if self.config.youtube_cookie_file and client != "android":
-            options["cookiefile"] = str(self.config.youtube_cookie_file)
-        with yt_dlp.YoutubeDL(options) as downloader:
-            info = downloader.extract_info(url, download=True)
-            prepared = Path(downloader.prepare_filename(info))
-            result = prepared.with_suffix(".mp4") if info.get("requested_formats") else prepared
+        with ExitStack() as resources:
+            # Android's Innertube client does not support account cookies. It
+            # is retained only as a public-video fallback. Other clients get a
+            # disposable copy because yt-dlp persists cookie changes on close.
+            if self.config.youtube_cookie_file and client != "android":
+                cookiefile = resources.enter_context(writable_cookie_copy(self.config.youtube_cookie_file))
+                options["cookiefile"] = str(cookiefile)
+            with yt_dlp.YoutubeDL(options) as downloader:
+                info = downloader.extract_info(url, download=True)
+                prepared = Path(downloader.prepare_filename(info))
+                result = prepared.with_suffix(".mp4") if info.get("requested_formats") else prepared
         if not result.exists():
             temporary_suffixes = {".part", ".ytdl", ".temp"}
             matches = sorted(
