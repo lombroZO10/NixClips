@@ -8,10 +8,16 @@ WORKDIR /app
 COPY --from=deno /deno /usr/local/bin/deno
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libgl1 libglib2.0-0 ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml README.md ./
+# Install the expensive CPU inference stack in a source-independent layer.
+# Only yt-dlp uses the nightly channel; the rest stays on stable releases.
+RUN mkdir -p src/nixclip_processor \
+  && touch src/nixclip_processor/__init__.py \
+  && pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio \
+  && pip install --no-cache-dir .[vision,diarization] \
+  && pip install --no-cache-dir --upgrade --pre "yt-dlp[default]" \
+  && rm -rf src
 COPY src ./src
-# --pre selects yt-dlp's nightly channel. The project pins the minimum plugin
-# framework version while still allowing daily extractor fixes.
-RUN pip install --no-cache-dir --pre .[vision,diarization]
+RUN pip install --no-cache-dir --no-deps .
 
 ENV NIXCLIP_HOST=0.0.0.0 NIXCLIP_PORT=8788
 EXPOSE 8788
