@@ -8,7 +8,7 @@ import {
   Menu, Play, ScanFace, Settings2, Sparkles, Upload, WandSparkles, X,
 } from 'lucide-react';
 import type { ProjectJob, ProjectPreferences } from '../../lib/contracts';
-import { createFileProject, createUrlProject, getProject, listProjects, processorHealth, type ProjectSummary } from '../../lib/processor-client';
+import { createFileProject, createUrlProject, getProject, processorHealth } from '../../lib/processor-client';
 import { getSupabaseBrowserClient } from '../../lib/supabase-browser';
 import './studio.css';
 
@@ -33,7 +33,6 @@ export default function StudioPage() {
   const [job, setJob] = useState<ProjectJob | null>(null);
   const [error, setError] = useState('');
   const [accountEmail, setAccountEmail] = useState('');
-  const [projects, setProjects] = useState<ProjectSummary[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -41,7 +40,6 @@ export default function StudioPage() {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => { listProjects().then(setProjects).catch(() => undefined); }, []);
 
   useEffect(() => {
     getSupabaseBrowserClient()?.auth.getUser().then(({ data }) => setAccountEmail(data.user?.email ?? ''));
@@ -81,7 +79,6 @@ export default function StudioPage() {
         ? await createFileProject(file!, preferences)
         : await createUrlProject(url, preferences);
       setJob(next);
-      setProjects((current) => [{ id: next.id, title: next.title, stage: next.stage, progress: next.progress, message: next.message, created_at: next.createdAt, clipCount: next.clips.length }, ...current.filter((project) => project.id !== next.id)]);
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível criar o projeto.'); }
   }
 
@@ -93,7 +90,7 @@ export default function StudioPage() {
         <Link className="studio-brand" href="/"><span><Play size={12} fill="currentColor" /></span><strong>NixClip</strong></Link>
         <nav>
           <a className="active" href="#"><LayoutDashboard size={18} /><span>Novo projeto</span></a>
-          <a href="#recentes"><History size={18} /><span>Projetos</span></a>
+          <Link href="/studio/projects"><History size={18} /><span>Projetos</span></Link>
           <a href="#templates"><Clapperboard size={18} /><span>Templates</span></a>
         </nav>
         <div className="sidebar-bottom">
@@ -199,7 +196,6 @@ export default function StudioPage() {
             </section>
           )}
 
-          <section className="projects-section" id="recentes"><div className="results-heading"><div><span className="step-label">HISTÓRICO</span><h2>Seus projetos</h2></div><span>{projects.length} projeto{projects.length === 1 ? '' : 's'}</span></div>{projects.length === 0 ? <p className="projects-empty">Seus projetos finalizados aparecerão aqui.</p> : <div className="projects-list">{projects.map((project) => <Link className="project-row" href={`/studio/projects/${project.id}`} key={project.id}><span className={`project-state state-${project.stage}`} /><span className="project-row-copy"><strong>{project.title}</strong><small>{new Date(project.created_at).toLocaleDateString('pt-BR')} · {project.clipCount} cortes · {project.stage === 'complete' ? 'Concluído' : project.progress + '%'}</small></span><ArrowRight size={16} /></Link>)}</div>}</section>
 
           <div className="studio-actions">
             <Link href="/"><ArrowLeft size={16} /> Voltar</Link>
