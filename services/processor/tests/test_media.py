@@ -1,4 +1,4 @@
-from nixclip_processor.media import crop_geometry, piecewise_focus_expression, target_dimensions, timestamp, write_srt
+from nixclip_processor.media import ass_color, crop_geometry, piecewise_focus_expression, target_dimensions, timestamp, write_srt
 
 
 def test_srt_timestamp_is_stable() -> None:
@@ -43,3 +43,15 @@ def test_piecewise_focus_expression_is_bounded_and_interpolated() -> None:
 def test_render_does_not_upscale_a_720p_source_to_full_hd() -> None:
     assert target_dimensions(1280, 720, "9:16") == (720, 1280)
     assert target_dimensions(1920, 1080, "9:16") == (1080, 1920)
+
+
+def test_brand_template_caption_helpers_are_safe() -> None:
+    assert target_dimensions(1920, 1080, "4:5") == (1080, 1350)
+    assert ass_color("#12abef", "fallback") == "&H00EFAB12"
+    assert ass_color("invalid", "fallback") == "fallback"
+
+
+def test_srt_can_apply_template_uppercase(tmp_path) -> None:
+    target = tmp_path / "captions.srt"
+    write_srt(target, [{"start": 0, "end": 1, "text": "texto curto"}], 0, 1_000, uppercase=True)
+    assert "TEXTO CURTO" in target.read_text(encoding="utf-8")

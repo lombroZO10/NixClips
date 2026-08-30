@@ -158,7 +158,7 @@ class Pipeline:
             for index, clip in enumerate(job.clips):
                 subtitle = project_dir / f"{clip.id}.srt"
                 output = project_dir / f"{clip.id}.mp4"
-                write_srt(subtitle, transcript, clip.start_ms, clip.end_ms)
+                write_srt(subtitle, transcript, clip.start_ms, clip.end_ms, bool(job.preferences.brand_template.get("uppercase", False)))
                 render_started_at = time.monotonic()
                 try:
                     render_task = asyncio.create_task(asyncio.to_thread(

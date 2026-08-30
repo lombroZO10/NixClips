@@ -64,13 +64,20 @@ def render_clip(
         reframe_mode = "fit"
     if preferences.captions and subtitle_path:
         escaped = str(subtitle_path.resolve()).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+        preset = str(template.get("captionPreset", "Nix Pop"))
+        preset_style = {
+            "Impacto": ("&H0000FFFF", "&H00000000", 4, 2),
+            "Minimal": ("&H00FFFFFF", "&H00000000", 1, 0),
+            "Karaokê": ("&H0000FFFF", "&H00000000", 3, 1),
+        }.get(preset, ("&H00FFFFFF", "&H00000000", 3, 1))
         font = str(template.get("font", "Arial")).replace(",", "")
         size = max(12, min(72, int(template.get("fontSize", 40))))
         position = {"top": 8, "middle": 5, "bottom": 2}.get(str(template.get("captionPosition", "bottom")), 2)
-        uppercase = bool(template.get("uppercase", True))
-        # The SRT text itself is deliberately kept as transcription; ASS style
-        # controls presentation consistently for every clip in the project.
-        style = f"FontName={font},FontSize={size},Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,Alignment={position},MarginV=110"
+        primary = ass_color(str(template.get("captionColor", "")), preset_style[0])
+        outline_color = ass_color(str(template.get("outlineColor", "")), preset_style[1])
+        outline = max(0, min(12, int(template.get("captionOutline", preset_style[2]))))
+        shadow = max(0, min(12, int(template.get("captionShadow", preset_style[3]))))
+        style = f"FontName={font},FontSize={size},Bold=1,PrimaryColour={primary},OutlineColour={outline_color},BorderStyle=1,Outline={outline},Shadow={shadow},Alignment={position},MarginV=110"
         filters.append(f"subtitles=filename='{escaped}':force_style='{style}'")
     destination.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -183,7 +190,7 @@ def detect_visual_focus(source: Path, start_ms: int, end_ms: int) -> tuple[float
     return statistics.median([point[1] for point in trajectory]), statistics.median([point[2] for point in trajectory]), True
 
 
-def write_srt(path: Path, transcript: list[dict], clip_start_ms: int, clip_end_ms: int) -> None:
+def write_srt(path: Path, transcript: list[dict], clip_start_ms: int, clip_end_ms: int, uppercase: bool = False) -> None:
     captions: list[tuple[int, int, str]] = []
     for segment in transcript:
         words = [word for word in segment.get("words", []) if word.get("start") is not None and word.get("end") is not None]
@@ -198,7 +205,7 @@ def write_srt(path: Path, transcript: list[dict], clip_start_ms: int, clip_end_m
         start, end = max(start, clip_start_ms), min(end, clip_end_ms)
         if end <= start or not text:
             continue
-        entries.append(f"{len(entries) + 1}\n{timestamp(start - clip_start_ms)} --> {timestamp(end - clip_start_ms)}\n{text}\n")
+        entries.append(f"{len(entries) + 1}\n{timestamp(start - clip_start_ms)} --> {timestamp(end - clip_start_ms)}\n{text.upper() if uppercase else text}\n")
     path.write_text("\n".join(entries), encoding="utf-8")
 
 
@@ -207,3 +214,14 @@ def timestamp(milliseconds: int) -> str:
     minutes, remainder = divmod(remainder, 60_000)
     seconds, millis = divmod(remainder, 1000)
     return f"{hours:02}:{minutes:02}:{seconds:02},{millis:03}"
+
+
+def ass_color(value: str, fallback: str) -> str:
+    if len(value) != 7 or not value.startswith("#"):
+        return fallback
+    try:
+        red, green, blue = value[1:3], value[3:5], value[5:7]
+        int(red + green + blue, 16)
+        return f"&H00{blue}{green}{red}".upper()
+    except ValueError:
+        return fallback
