@@ -7,7 +7,9 @@ WORKDIR /app
 
 COPY --from=deno /deno /usr/local/bin/deno
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libgl1 libglib2.0-0 ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY pyproject.toml README.md ./
+# Documentation and application source must not invalidate the multi-gigabyte
+# inference dependency layer. Only pyproject.toml participates in this cache.
+COPY pyproject.toml ./
 # Install the expensive CPU inference stack in a source-independent layer.
 # Only yt-dlp uses the nightly channel; the rest stays on stable releases.
 RUN mkdir -p src/nixclip_processor \
