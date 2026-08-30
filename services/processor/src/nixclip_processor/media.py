@@ -33,14 +33,15 @@ def render_clip(
     source: Path, destination: Path, start_ms: int, end_ms: int,
     preferences: Preferences, subtitle_path: Path | None = None,
 ) -> str:
-    dimensions = {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080)}
-    width, height = dimensions[preferences.aspect_ratio]
+    source_width, source_height = source_dimensions(source)
+    # Do not spend CPU and bitrate manufacturing pixels that do not exist in a
+    # 720p source. Full-HD inputs still render at the original 1080 target.
+    width, height = target_dimensions(source_width, source_height, preferences.aspect_ratio)
     if preferences.auto_reframe:
         trajectory = detect_focus_trajectory(source, start_ms, end_ms)
         focus_x = statistics.median([point[1] for point in trajectory]) if trajectory else .5
         focus_y = statistics.median([point[2] for point in trajectory]) if trajectory else .45
         detected = bool(trajectory)
-        source_width, source_height = source_dimensions(source)
         crop_width, crop_height, crop_x, crop_y = crop_geometry(
             source_width, source_height, width / height, focus_x, focus_y,
         )
@@ -67,11 +68,21 @@ def render_clip(
     command = [
         settings.ffmpeg, "-y", "-ss", f"{start_ms / 1000:.3f}", "-i", str(source),
         "-t", f"{(end_ms - start_ms) / 1000:.3f}", "-vf", ",".join(filters),
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-c:a", "aac", "-b:a", "160k",
+        "-c:v", "libx264", "-preset", "superfast", "-crf", "20", "-c:a", "aac", "-b:a", "160k",
         "-movflags", "+faststart", str(destination),
     ]
     subprocess.run(command, check=True, capture_output=True)
     return reframe_mode
+
+
+def target_dimensions(source_width: int, source_height: int, aspect_ratio: str) -> tuple[int, int]:
+    high_resolution = min(source_width, source_height) > 720
+    dimensions = (
+        {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080)}
+        if high_resolution else
+        {"9:16": (720, 1280), "1:1": (720, 720), "16:9": (1280, 720)}
+    )
+    return dimensions[aspect_ratio]
 
 
 def source_dimensions(source: Path) -> tuple[int, int]:

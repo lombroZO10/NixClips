@@ -202,7 +202,10 @@ class YoutubeDownloader:
         self._request_lock = threading.Lock()
         self._last_download_started = 0.0
 
-    def download(self, url: str, output_template: Path, ffmpeg: str) -> Path:
+    def download(
+        self, url: str, output_template: Path, ffmpeg: str,
+        progress: Callable[[dict[str, object]], None] | None = None,
+    ) -> Path:
         cookie = inspect_cookie_file(self.config.youtube_cookie_file)
         if not cookie.valid:
             message = f"cookies.txt inválido ou vencido ({cookie.reason}); exporte uma sessão válida novamente"
@@ -218,7 +221,7 @@ class YoutubeDownloader:
                 self.health.begin(client)
                 self._log("download_attempt", attempt=attempt, client=client)
                 try:
-                    result = self._download_once(url, output_template, ffmpeg, client)
+                    result = self._download_once(url, output_template, ffmpeg, client, progress)
                 except Exception as error:
                     kind = classify_download_error(error)
                     last_error = YoutubeDownloadError(_safe_error(error), kind)
@@ -253,7 +256,10 @@ class YoutubeDownloader:
                 self._sleep(remaining)
             self._last_download_started = time.monotonic()
 
-    def _download_once(self, url: str, output_template: Path, ffmpeg: str, client: str) -> Path:
+    def _download_once(
+        self, url: str, output_template: Path, ffmpeg: str, client: str,
+        progress: Callable[[dict[str, object]], None] | None = None,
+    ) -> Path:
         import yt_dlp
 
         extractor_args: dict[str, dict[str, list[str]]] = {
@@ -284,6 +290,8 @@ class YoutubeDownloader:
             "file_access_retries": 2,
             "socket_timeout": 30,
         }
+        if progress:
+            options["progress_hooks"] = [progress]
         with ExitStack() as resources:
             # Android's Innertube client does not support account cookies. It
             # is retained only as a public-video fallback. Other clients get a

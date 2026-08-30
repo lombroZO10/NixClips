@@ -8,6 +8,7 @@ import tempfile
 import time
 import wave
 from pathlib import Path
+from typing import Callable
 
 from .config import settings
 from .curation import curate_transcript
@@ -33,10 +34,38 @@ class Pipeline:
         job = await repository.get(project_id)
         if not job:
             return
+        event_loop = asyncio.get_running_loop()
         try:
             if job.source_url and (not job.source_path or not Path(job.source_path).exists()):
                 await self._update(job, Stage.IMPORT, 4, "Baixando o vídeo original")
-                job.source_path = str(await asyncio.to_thread(self._download, job))
+                last_download_update = 0.0
+                highest_download_fraction = 0.0
+
+                def download_progress(status: dict[str, object]) -> None:
+                    nonlocal last_download_update, highest_download_fraction
+                    if status.get("status") != "downloading":
+                        return
+                    now = time.monotonic()
+                    if now - last_download_update < 1:
+                        return
+                    last_download_update = now
+                    downloaded = int(status.get("downloaded_bytes") or 0)
+                    total = int(status.get("total_bytes") or status.get("total_bytes_estimate") or 0)
+                    fraction = downloaded / total if total > 0 else 0
+                    highest_download_fraction = max(highest_download_fraction, fraction)
+                    fraction = highest_download_fraction
+                    progress = min(14, 4 + round(fraction * 10))
+                    speed = _format_speed(status.get("speed"))
+                    eta = _format_eta(status.get("eta"))
+                    details = " · ".join(value for value in (speed, eta) if value)
+                    message = f"Baixando o vídeo · {fraction * 100:.0f}%"
+                    if details:
+                        message += f" · {details}"
+                    asyncio.run_coroutine_threadsafe(
+                        self._update(job, Stage.IMPORT, progress, message), event_loop,
+                    )
+
+                job.source_path = str(await asyncio.to_thread(self._download, job, download_progress))
 
             source = Path(job.source_path or "")
             await self._update(job, Stage.IMPORT, 10, "Inspecionando faixas, duração e resolução")
@@ -73,34 +102,42 @@ class Pipeline:
                 visual = json.loads(visual_path.read_text(encoding="utf-8"))
             else:
                 await self._update(job, Stage.ANALYZE, 46, "Analisando cenas, movimento e rostos")
-                visual_task = asyncio.create_task(asyncio.to_thread(
-                    analyze_video, source, job.media.duration_ms if job.media else 0, settings.visual_sample_fps,
-                ))
-                started_at = time.monotonic()
-                while not visual_task.done():
-                    try:
-                        await asyncio.wait_for(asyncio.shield(visual_task), timeout=5)
-                    except asyncio.TimeoutError:
-                        elapsed = int(time.monotonic() - started_at)
-                        await self._update(
-                            job, Stage.ANALYZE, 50,
-                            f"Analisando cenas, movimento e rostos · {elapsed // 60:02d}:{elapsed % 60:02d}",
-                        )
-                visual = await visual_task
+                visual_started_at = time.monotonic()
+
+                def visual_progress(fraction: float) -> None:
+                    elapsed = int(time.monotonic() - visual_started_at)
+                    asyncio.run_coroutine_threadsafe(
+                        self._update(
+                            job, Stage.ANALYZE, 46 + round(max(0.0, min(1.0, fraction)) * 8),
+                            f"Analisando cenas e rostos · {fraction * 100:.0f}% · {elapsed // 60:02d}:{elapsed % 60:02d}",
+                        ),
+                        event_loop,
+                    )
+
+                visual = await asyncio.to_thread(
+                    analyze_video, source, job.media.duration_ms if job.media else 0,
+                    settings.visual_sample_fps, visual_progress,
+                )
                 visual_path.write_text(json.dumps(visual, ensure_ascii=False), encoding="utf-8")
             transcript = enrich_transcript(transcript, visual)
             advanced_path = project_dir / "advanced.json"
             if advanced_path.exists():
                 advanced = json.loads(advanced_path.read_text(encoding="utf-8"))
+            elif not settings.yolo_enabled and not settings.hf_token.strip():
+                await self._update(job, Stage.ANALYZE, 56, "Finalizando a análise editorial")
+                advanced = {
+                    "objects": {"backend": "disabled", "tracks": []},
+                    "speakers": {"backend": "unavailable", "segments": []},
+                }
+                advanced_path.write_text(json.dumps(advanced, ensure_ascii=False), encoding="utf-8")
             else:
-                await self._update(job, Stage.ANALYZE, 52, "Rastreando objetos e identificando falantes")
+                await self._update(job, Stage.ANALYZE, 55, "Rastreando objetos e identificando falantes")
                 object_task = asyncio.create_task(asyncio.to_thread(
                     detect_objects, source, job.media.duration_ms if job.media else 0,
-                ))
-                await object_task
+                )) if settings.yolo_enabled else None
                 audio_path = project_dir / "analysis-audio.wav"
-                speaker_task = asyncio.create_task(asyncio.to_thread(diarize, audio_path)) if audio_path.exists() else None
-                objects = object_task.result()
+                speaker_task = asyncio.create_task(asyncio.to_thread(diarize, audio_path)) if settings.hf_token.strip() and audio_path.exists() else None
+                objects = await object_task if object_task else {"backend": "disabled", "tracks": []}
                 speakers = await speaker_task if speaker_task else {"backend": "unavailable", "segments": []}
                 advanced = {"objects": objects, "speakers": speakers}
                 advanced_path.write_text(json.dumps(advanced, ensure_ascii=False), encoding="utf-8")
@@ -122,10 +159,22 @@ class Pipeline:
                 subtitle = project_dir / f"{clip.id}.srt"
                 output = project_dir / f"{clip.id}.mp4"
                 write_srt(subtitle, transcript, clip.start_ms, clip.end_ms)
+                render_started_at = time.monotonic()
                 try:
-                    clip.reframe_mode = await asyncio.to_thread(
+                    render_task = asyncio.create_task(asyncio.to_thread(
                         render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, subtitle,
-                    )
+                    ))
+                    while not render_task.done():
+                        try:
+                            await asyncio.wait_for(asyncio.shield(render_task), timeout=5)
+                        except asyncio.TimeoutError:
+                            elapsed = int(time.monotonic() - render_started_at)
+                            progress = 74 + round(24 * index / len(job.clips))
+                            await self._update(
+                                job, Stage.RENDER, progress,
+                                f"Renderizando corte {index + 1} de {len(job.clips)} · {elapsed // 60:02d}:{elapsed % 60:02d}",
+                            )
+                    clip.reframe_mode = await render_task
                 except Exception:
                     clip.reframe_mode = await asyncio.to_thread(
                         render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, None,
@@ -196,11 +245,30 @@ class Pipeline:
                     [settings.ffmpeg, "-y", "-i", str(source), "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", str(audio_target)],
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                 )
-            segments, _ = model.transcribe(
-                str(audio_target), language=None if language == "auto" else language,
-                vad_filter=True, word_timestamps=True, beam_size=1,
-                condition_on_previous_text=False,
-            )
+            if settings.asr_batch_size > 1:
+                from faster_whisper import BatchedInferencePipeline
+
+                try:
+                    segments, _ = BatchedInferencePipeline(model=model).transcribe(
+                        str(audio_target), language=None if language == "auto" else language,
+                        vad_filter=True, word_timestamps=True, beam_size=1,
+                        batch_size=settings.asr_batch_size,
+                    )
+                    segments = list(segments)
+                except (RuntimeError, ValueError, TypeError):
+                    segments, _ = model.transcribe(
+                        str(audio_target), language=None if language == "auto" else language,
+                        vad_filter=True, word_timestamps=True, beam_size=1,
+                        condition_on_previous_text=False,
+                    )
+                    segments = list(segments)
+            else:
+                segments, _ = model.transcribe(
+                    str(audio_target), language=None if language == "auto" else language,
+                    vad_filter=True, word_timestamps=True, beam_size=1,
+                    condition_on_previous_text=False,
+                )
+                segments = list(segments)
             transcript = [
                 {"start": float(segment.start), "end": float(segment.end), "text": segment.text.strip(),
                  "words": [{"start": float(word.start), "end": float(word.end), "text": word.word, "probability": word.probability} for word in (segment.words or [])]}
@@ -216,12 +284,31 @@ class Pipeline:
     def _curate(self, transcript: list[dict], job: ProjectJob):
         return curate_transcript(transcript, job.preferences)
 
-    def _download(self, job: ProjectJob) -> Path:
+    def _download(
+        self, job: ProjectJob,
+        progress: Callable[[dict[str, object]], None] | None = None,
+    ) -> Path:
         output = settings.uploads_dir / f"{job.id}.%(ext)s"
-        return youtube_downloader.download(str(job.source_url), output, settings.ffmpeg)
+        return youtube_downloader.download(str(job.source_url), output, settings.ffmpeg, progress)
 
 
 pipeline = Pipeline()
+
+
+def _format_speed(value: object) -> str:
+    try:
+        speed = float(value)
+    except (TypeError, ValueError):
+        return ""
+    return f"{speed / 1_000_000:.1f} MB/s" if speed > 0 else ""
+
+
+def _format_eta(value: object) -> str:
+    try:
+        seconds = max(0, int(float(value)))
+    except (TypeError, ValueError):
+        return ""
+    return f"faltam {seconds // 60:02d}:{seconds % 60:02d}"
 
 
 def _audio_energy(path: Path, start: float, end: float) -> float:

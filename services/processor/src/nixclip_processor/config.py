@@ -33,11 +33,13 @@ class Settings(BaseSettings):
     asr_model: str = "small"
     asr_device: str = "auto"
     asr_compute_type: str = "auto"
-    asr_cpu_threads: int = max(1, (os.cpu_count() or 4) // 2)
+    asr_cpu_threads: int = max(1, os.cpu_count() or 2)
     asr_num_workers: int = 1
+    asr_batch_size: int = 4
     analysis_max_width: int = 1280
-    visual_sample_fps: float = 1.5
+    visual_sample_fps: float = .75
     yolo_model: str = "yolo11n.pt"
+    yolo_enabled: bool = False
     hf_token: str = ""
     allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://nixclip.fnxtutors.chatgpt.site,https://nixclips-ruby.vercel.app"
     ffmpeg_path: str | None = None
@@ -47,8 +49,8 @@ class Settings(BaseSettings):
     youtube_pot_provider_url: str = "http://127.0.0.1:4416"
     youtube_download_concurrency: int = 1
     youtube_download_delay: float = 15.0
-    youtube_sleep_requests: float = 5.0
-    youtube_limit_rate: int = 2_000_000
+    youtube_sleep_requests: float = 2.0
+    youtube_limit_rate: int = 6_000_000
     youtube_max_attempts: int = 6
     youtube_backoff_base: float = 5.0
     youtube_backoff_cap: float = 120.0

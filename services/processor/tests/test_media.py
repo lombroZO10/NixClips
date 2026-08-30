@@ -1,4 +1,4 @@
-from nixclip_processor.media import crop_geometry, piecewise_focus_expression, timestamp, write_srt
+from nixclip_processor.media import crop_geometry, piecewise_focus_expression, target_dimensions, timestamp, write_srt
 
 
 def test_srt_timestamp_is_stable() -> None:
@@ -38,3 +38,8 @@ def test_piecewise_focus_expression_is_bounded_and_interpolated() -> None:
     assert expression.startswith("max(0\\,min(1314\\,")
     assert "if(lt(t\\,1.000)" in expression
     assert expression.endswith(")")
+
+
+def test_render_does_not_upscale_a_720p_source_to_full_hd() -> None:
+    assert target_dimensions(1280, 720, "9:16") == (720, 1280)
+    assert target_dimensions(1920, 1080, "9:16") == (1080, 1920)

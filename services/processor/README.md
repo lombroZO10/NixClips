@@ -131,10 +131,17 @@ Copie `config.example.env` para `.env`. Os controles principais são:
 | `NIXCLIP_YOUTUBE_PLAYER_CLIENTS` | `mweb,web_embedded,tv,android` | ordem dos fallbacks |
 | `NIXCLIP_YOUTUBE_DOWNLOAD_CONCURRENCY` | `1` | downloads simultâneos |
 | `NIXCLIP_YOUTUBE_DOWNLOAD_DELAY` | `15` | segundos mínimos entre downloads |
-| `NIXCLIP_YOUTUBE_SLEEP_REQUESTS` | `5` | pausa interna entre requests do extractor |
-| `NIXCLIP_YOUTUBE_LIMIT_RATE` | `2000000` | teto aproximado em bytes/s |
+| `NIXCLIP_YOUTUBE_SLEEP_REQUESTS` | `2` | pausa interna entre requests do extractor |
+| `NIXCLIP_YOUTUBE_LIMIT_RATE` | `6000000` | teto aproximado em bytes/s |
 | `NIXCLIP_YOUTUBE_MAX_ATTEMPTS` | `6` | tentativas totais por URL |
 | `NIXCLIP_YOUTUBE_RATE_LIMIT_COOLDOWN` | `600` | pausa global após 429/BotGuard |
+
+### Perfil de desempenho em CPU
+
+- `NIXCLIP_ASR_BATCH_SIZE=4` usa transcrição em lote sem trocar o modelo `small`.
+- `NIXCLIP_VISUAL_SAMPLE_FPS=0.75` faz uma leitura representativa da linha do tempo sem decodificar todos os frames.
+- `NIXCLIP_YOLO_ENABLED=false` evita varrer o vídeo inteiro com YOLO em servidores sem GPU; movimento, cenas e rostos continuam ativos.
+- Fontes de até 720p são renderizadas em até 720x1280, evitando upscale sem detalhe real. Fontes Full HD continuam em 1080x1920.
 
 Para uma VPS já limitada, aumente o cooldown para `1800` ou mais e reduza a frequência da fila. Trocar client, cookie ou conta repetidamente não recupera um IP bloqueado e pode prolongar a limitação.
 

@@ -94,7 +94,7 @@ def test_transient_failure_falls_back_to_next_client(monkeypatch: pytest.MonkeyP
     manager = YoutubeDownloader(make_settings())
     clients: list[str] = []
 
-    def fake_download(url: str, output: Path, ffmpeg: str, client: str) -> Path:
+    def fake_download(url: str, output: Path, ffmpeg: str, client: str, progress=None) -> Path:
         clients.append(client)
         if len(clients) == 1:
             raise RuntimeError("HTTP Error 403: Forbidden")
@@ -111,7 +111,7 @@ def test_permanent_failure_does_not_retry(monkeypatch: pytest.MonkeyPatch, tmp_p
     manager = YoutubeDownloader(make_settings())
     calls = 0
 
-    def fake_download(url: str, output: Path, ffmpeg: str, client: str) -> Path:
+    def fake_download(url: str, output: Path, ffmpeg: str, client: str, progress=None) -> Path:
         nonlocal calls
         calls += 1
         raise RuntimeError("Private video")
@@ -128,7 +128,7 @@ def test_rate_limit_opens_circuit_before_resuming(monkeypatch: pytest.MonkeyPatc
     manager = YoutubeDownloader(make_settings(youtube_rate_limit_cooldown=10), sleep=sleeps.append)
     calls = 0
 
-    def fake_download(url: str, output: Path, ffmpeg: str, client: str) -> Path:
+    def fake_download(url: str, output: Path, ffmpeg: str, client: str, progress=None) -> Path:
         nonlocal calls
         calls += 1
         if calls == 1:

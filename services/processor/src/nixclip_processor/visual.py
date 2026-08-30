@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import statistics
 from pathlib import Path
+from typing import Callable
 
 
-def analyze_video(source: Path, duration_ms: int, sample_fps: float = .5) -> dict:
+def analyze_video(
+    source: Path, duration_ms: int, sample_fps: float = .5,
+    progress: Callable[[float], None] | None = None,
+) -> dict:
     """Extract a compact visual timeline in one low-resolution pass.
 
     This deliberately avoids a heavyweight detector. The signals are stable and
@@ -18,7 +22,7 @@ def analyze_video(source: Path, duration_ms: int, sample_fps: float = .5) -> dic
         return {"samples": [], "scene_cuts": []}
     required_api = (
         "VideoCapture", "CascadeClassifier", "resize", "cvtColor", "absdiff",
-        "CAP_PROP_FPS", "COLOR_BGR2GRAY", "data",
+        "CAP_PROP_POS_MSEC", "COLOR_BGR2GRAY", "data",
     )
     if any(not hasattr(cv2, name) for name in required_api):
         # OpenCV wheels share the cv2 namespace. A partially overwritten wheel
@@ -28,23 +32,18 @@ def analyze_video(source: Path, duration_ms: int, sample_fps: float = .5) -> dic
     if not capture.isOpened():
         return {"samples": [], "scene_cuts": []}
     interval_ms = max(1000, round(1000 / max(sample_fps, .1)))
-    source_fps = max(1.0, float(capture.get(cv2.CAP_PROP_FPS) or 30.0))
-    frame_interval = max(1, round(source_fps / max(sample_fps, .1)))
     cascade = cv2.CascadeClassifier(str(Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"))
     samples: list[dict] = []
     scene_cuts: list[float] = []
     previous_gray = None
     try:
-        frame_index = 0
-        next_sample = 0
-        while next_sample < duration_ms:
+        sample_positions = range(0, max(0, duration_ms), interval_ms)
+        for sample_index, next_sample in enumerate(sample_positions):
+            capture.set(cv2.CAP_PROP_POS_MSEC, next_sample)
             ok, frame = capture.read()
             if not ok:
                 break
-            if frame_index < next_sample / 1000 * source_fps:
-                frame_index += 1
-                continue
-            position = round(frame_index / source_fps * 1000)
+            position = next_sample
             height, width = frame.shape[:2]
             scale = min(1.0, 480 / max(width, 1))
             scan = cv2.resize(frame, None, fx=scale, fy=scale) if scale < 1 else frame
@@ -71,10 +70,12 @@ def analyze_video(source: Path, duration_ms: int, sample_fps: float = .5) -> dic
                 "faces": face_items,
                 "speaker": 0 if face_items and face_items[0]["size"] >= .08 else None,
             })
-            frame_index += 1
-            next_sample = position + interval_ms
+            if progress and sample_index % 10 == 0:
+                progress(min(1.0, position / max(duration_ms, 1)))
     finally:
         capture.release()
+    if progress:
+        progress(1.0)
     return {"samples": samples, "scene_cuts": _dedupe_times(scene_cuts)}
 
 
