@@ -47,6 +47,11 @@ alter table public.profiles enable row level security;
 alter table public.projects enable row level security;
 alter table public.clips enable row level security;
 
+drop policy if exists "profiles are self-readable" on public.profiles;
+drop policy if exists "profiles are self-editable" on public.profiles;
+drop policy if exists "projects owner access" on public.projects;
+drop policy if exists "clips follow project owner" on public.clips;
+
 create policy "profiles are self-readable" on public.profiles for select using (auth.uid() = id);
 create policy "profiles are self-editable" on public.profiles for update using (auth.uid() = id);
 create policy "projects owner access" on public.projects for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
