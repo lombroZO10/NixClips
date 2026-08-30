@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable @next/next/no-html-link-for-pages */
 
 import Link from 'next/link';
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react';
@@ -93,8 +94,8 @@ export default function StudioPage() {
         <Link className="studio-brand" href="/"><span><Play size={12} fill="currentColor" /></span><strong>NixClip</strong></Link>
         <nav>
           <a className="active" href="#"><LayoutDashboard size={18} /><span>Novo projeto</span></a>
-          <Link href="/studio/projects"><History size={18} /><span>Projetos</span></Link>
-          <Link href="/studio/templates"><Clapperboard size={18} /><span>Templates</span></Link>
+          <a href="/studio/projects"><History size={18} /><span>Projetos</span></a>
+          <a href="/studio/templates"><Clapperboard size={18} /><span>Templates</span></a>
         </nav>
         <div className="sidebar-bottom">
           <a href="#settings"><Settings2 size={18} /><span>Configurações</span></a>
