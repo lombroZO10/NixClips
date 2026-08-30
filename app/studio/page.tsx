@@ -91,7 +91,7 @@ export default function StudioPage() {
         <nav>
           <a className="active" href="#"><LayoutDashboard size={18} /><span>Novo projeto</span></a>
           <Link href="/studio/projects"><History size={18} /><span>Projetos</span></Link>
-          <a href="#templates"><Clapperboard size={18} /><span>Templates</span></a>
+          <Link href="/studio/templates"><Clapperboard size={18} /><span>Templates</span></Link>
         </nav>
         <div className="sidebar-bottom">
           <a href="#settings"><Settings2 size={18} /><span>Configurações</span></a>
