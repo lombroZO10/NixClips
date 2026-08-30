@@ -1,4 +1,4 @@
-from nixclip_processor.media import ass_color, crop_geometry, piecewise_focus_expression, target_dimensions, timestamp, write_srt
+from nixclip_processor.media import ass_color, crop_geometry, drawtext_filter, piecewise_focus_expression, target_dimensions, timestamp, write_srt
 
 
 def test_srt_timestamp_is_stable() -> None:
@@ -55,3 +55,8 @@ def test_srt_can_apply_template_uppercase(tmp_path) -> None:
     target = tmp_path / "captions.srt"
     write_srt(target, [{"start": 0, "end": 1, "text": "texto curto"}], 0, 1_000, uppercase=True)
     assert "TEXTO CURTO" in target.read_text(encoding="utf-8")
+
+
+def test_brand_drawtext_escapes_ffmpeg_delimiters() -> None:
+    rendered = drawtext_filter("Siga: Nix's", "h*.82", 20, "0x7c2cff@.8")
+    assert "Siga\\: Nix\\'s" in rendered

@@ -79,6 +79,12 @@ def render_clip(
         shadow = max(0, min(12, int(template.get("captionShadow", preset_style[3]))))
         style = f"FontName={font},FontSize={size},Bold=1,PrimaryColour={primary},OutlineColour={outline_color},BorderStyle=1,Outline={outline},Shadow={shadow},Alignment={position},MarginV=110"
         filters.append(f"subtitles=filename='{escaped}':force_style='{style}'")
+    title = str(template.get("brandTitle", "")).strip()
+    if title:
+        filters.append(drawtext_filter(title, y="h*0.07", fontsize=32, box_color="0x0b0914@0.72"))
+    cta = str(template.get("ctaText", "")).strip()
+    if cta:
+        filters.append(drawtext_filter(cta, y="h*0.82", fontsize=20, box_color="0x7c2cff@0.86"))
     destination.parent.mkdir(parents=True, exist_ok=True)
     command = [
         settings.ffmpeg, "-y", "-ss", f"{start_ms / 1000:.3f}", "-i", str(source),
@@ -225,3 +231,8 @@ def ass_color(value: str, fallback: str) -> str:
         return f"&H00{blue}{green}{red}".upper()
     except ValueError:
         return fallback
+
+
+def drawtext_filter(text: str, y: str, fontsize: int, box_color: str) -> str:
+    safe = text.replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
+    return f"drawtext=text='{safe}':fontcolor=white:fontsize={fontsize}:x=(w-text_w)/2:y={y}:box=1:boxcolor={box_color}:boxborderw=12"
