@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
 from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
@@ -129,6 +130,18 @@ async def get_project(project_id: str) -> dict:
     if not job:
         raise HTTPException(404, "Projeto não encontrado.")
     return public_job(job)
+
+
+@app.delete("/api/v1/projects/{project_id}")
+async def delete_project(project_id: str) -> dict:
+    job = await repository.get(project_id)
+    if not job:
+        raise HTTPException(404, "Projeto não encontrado.")
+    project_dir = settings.projects_dir / project_id
+    if project_dir.exists():
+        shutil.rmtree(project_dir)
+    await repository.delete(project_id)
+    return {"ok": True}
 
 
 @app.post("/api/v1/projects/{project_id}/retry", status_code=202)

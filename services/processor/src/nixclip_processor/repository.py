@@ -50,5 +50,10 @@ class ProjectRepository:
             rows = await cursor.fetchall()
         return [ProjectJob.model_validate(json.loads(row[0])) for row in rows]
 
+    async def delete(self, project_id: str) -> None:
+        async with aiosqlite.connect(settings.database_path) as database:
+            await database.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+            await database.commit()
+
 
 repository = ProjectRepository()
