@@ -3,6 +3,15 @@ import { getSupabaseServerClient } from '../../../lib/supabase-server';
 
 const PROCESSOR_URL = process.env.PROCESSOR_URL ?? process.env.NEXT_PUBLIC_PROCESSOR_URL ?? 'http://127.0.0.1:8788';
 
+async function applyTemplate(supabase: NonNullable<Awaited<ReturnType<typeof getSupabaseServerClient>>>, userId: string, preferences: Record<string, unknown>) {
+  const templateId = preferences.brandTemplateId;
+  if (typeof templateId !== 'string' || !templateId) return preferences;
+  const { data: template } = await supabase.from('brand_templates').select('settings').eq('id', templateId).eq('owner_id', userId).single();
+  if (!template) throw new Error('Modelo de marca não encontrado.');
+  const settings = template.settings as Record<string, unknown>;
+  return { ...preferences, aspectRatio: settings.aspectRatio ?? preferences.aspectRatio, autoReframe: settings.layout === 'fit' ? false : preferences.autoReframe, brandTemplate: settings };
+}
+
 export async function POST(request: Request) {
   const supabase = await getSupabaseServerClient();
   if (!supabase) return NextResponse.json({ detail: 'Autenticação indisponível.' }, { status: 503 });
@@ -16,12 +25,12 @@ export async function POST(request: Request) {
     const incoming = await request.formData();
     const form = new FormData(); const file = incoming.get('file');
     if (file instanceof File) form.append('file', file, file.name);
-    preferences = JSON.parse(String(incoming.get('preferences') ?? '{}')); form.append('preferences', JSON.stringify(preferences));
+    preferences = await applyTemplate(supabase, user.id, JSON.parse(String(incoming.get('preferences') ?? '{}'))); form.append('preferences', JSON.stringify(preferences));
     response = await fetch(`${PROCESSOR_URL}/api/v1/projects/upload`, { method: 'POST', body: form });
   } else {
     const body = await request.json() as { url: string; preferences: Record<string, unknown> };
-    sourceUrl = body.url; preferences = body.preferences ?? {};
-    response = await fetch(`${PROCESSOR_URL}/api/v1/projects/url`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    sourceUrl = body.url; preferences = await applyTemplate(supabase, user.id, body.preferences ?? {});
+    response = await fetch(`${PROCESSOR_URL}/api/v1/projects/url`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...body, preferences }) });
   }
   if (!response.ok) return NextResponse.json(await response.json().catch(() => ({ detail: 'O processador recusou a solicitação.' })), { status: response.status });
   const job = await response.json() as { id: string; title: string; sourceName?: string; stage: string; progress: number; message: string; createdAt: string };

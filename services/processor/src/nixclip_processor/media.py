@@ -37,7 +37,9 @@ def render_clip(
     # Do not spend CPU and bitrate manufacturing pixels that do not exist in a
     # 720p source. Full-HD inputs still render at the original 1080 target.
     width, height = target_dimensions(source_width, source_height, preferences.aspect_ratio)
-    if preferences.auto_reframe:
+    template = preferences.brand_template
+    template_layout = str(template.get("layout", "fill"))
+    if preferences.auto_reframe and template_layout != "fit":
         trajectory = detect_focus_trajectory(source, start_ms, end_ms)
         focus_x = statistics.median([point[1] for point in trajectory]) if trajectory else .5
         focus_y = statistics.median([point[2] for point in trajectory]) if trajectory else .45
@@ -62,7 +64,13 @@ def render_clip(
         reframe_mode = "fit"
     if preferences.captions and subtitle_path:
         escaped = str(subtitle_path.resolve()).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
-        style = "FontName=Arial,FontSize=13,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=145"
+        font = str(template.get("font", "Arial")).replace(",", "")
+        size = max(12, min(72, int(template.get("fontSize", 40))))
+        position = {"top": 8, "middle": 5, "bottom": 2}.get(str(template.get("captionPosition", "bottom")), 2)
+        uppercase = bool(template.get("uppercase", True))
+        # The SRT text itself is deliberately kept as transcription; ASS style
+        # controls presentation consistently for every clip in the project.
+        style = f"FontName={font},FontSize={size},Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=3,Shadow=1,Alignment={position},MarginV=110"
         filters.append(f"subtitles=filename='{escaped}':force_style='{style}'")
     destination.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -78,9 +86,9 @@ def render_clip(
 def target_dimensions(source_width: int, source_height: int, aspect_ratio: str) -> tuple[int, int]:
     high_resolution = min(source_width, source_height) > 720
     dimensions = (
-        {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080)}
+        {"9:16": (1080, 1920), "1:1": (1080, 1080), "16:9": (1920, 1080), "4:5": (1080, 1350)}
         if high_resolution else
-        {"9:16": (720, 1280), "1:1": (720, 720), "16:9": (1280, 720)}
+        {"9:16": (720, 1280), "1:1": (720, 720), "16:9": (1280, 720), "4:5": (720, 900)}
     )
     return dimensions[aspect_ratio]
 

@@ -52,4 +52,5 @@ export interface ProjectPreferences {
   prompt?: string;
   captions: boolean;
   autoReframe: boolean;
+  brandTemplateId?: string;
 }

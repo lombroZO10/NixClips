@@ -33,12 +33,15 @@ export default function StudioPage() {
   const [job, setJob] = useState<ProjectJob | null>(null);
   const [error, setError] = useState('');
   const [accountEmail, setAccountEmail] = useState('');
+  const [brandTemplates, setBrandTemplates] = useState<Array<{ id: string; name: string }>>([]);
 
   useEffect(() => {
     const controller = new AbortController();
     processorHealth(controller.signal).then(setOnline);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => { fetch('/api/templates').then((response) => response.ok ? response.json() : []).then(setBrandTemplates).catch(() => undefined); }, []);
 
 
   useEffect(() => {
@@ -154,6 +157,7 @@ export default function StudioPage() {
 
             <aside className="settings-card">
               <div className="settings-title"><div><span className="step-label">02 — DIREÇÃO</span><h3>Configuração dos cortes</h3></div><Settings2 size={19} /></div>
+              <label className="setting-field"><span>Modelo de marca <small>opcional</small></span><div className="select-shell"><select value={preferences.brandTemplateId ?? ''} onChange={(event) => setPreferences({ ...preferences, brandTemplateId: event.target.value || undefined })}><option value="">Usar configurações do projeto</option>{brandTemplates.map((template) => <option value={template.id} key={template.id}>{template.name}</option>)}</select><ChevronDown size={15} /></div></label>
               <label className="setting-field"><span>Idioma falado</span><div className="select-shell"><select value={preferences.language} onChange={(event) => setPreferences({ ...preferences, language: event.target.value as ProjectPreferences['language'] })}><option value="auto">Detectar automaticamente</option><option value="pt">Português</option><option value="en">Inglês</option><option value="es">Espanhol</option></select><ChevronDown size={15} /></div></label>
               <div className="setting-field"><span>Duração preferida</span><div className="segmented">{(['short','medium','long'] as const).map((length) => <button key={length} className={preferences.clipLength === length ? 'active' : ''} onClick={() => setPreferences({ ...preferences, clipLength: length })}>{length === 'short' ? '15–30s' : length === 'medium' ? '30–60s' : '60–90s'}</button>)}</div></div>
               <div className="setting-field"><span>Quantidade de cortes</span><div className="segmented">{([5, 10, 15] as const).map((count) => <button key={count} className={preferences.clipCount === count ? 'active' : ''} onClick={() => setPreferences({ ...preferences, clipCount: count })}>{count}</button>)}</div></div>

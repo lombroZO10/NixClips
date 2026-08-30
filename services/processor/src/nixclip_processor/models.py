@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 from pydantic.alias_generators import to_camel
@@ -26,11 +26,12 @@ class Stage(str, Enum):
 class Preferences(ApiModel):
     language: Literal["auto", "pt", "en", "es"] = "auto"
     clip_length: Literal["short", "medium", "long"] = "medium"
-    aspect_ratio: Literal["9:16", "1:1", "16:9"] = "9:16"
+    aspect_ratio: Literal["9:16", "1:1", "16:9", "4:5"] = "9:16"
     clip_count: int = Field(default=10, ge=1, le=20)
     prompt: str = Field(default="", max_length=1000)
     captions: bool = True
     auto_reframe: bool = True
+    brand_template: dict[str, Any] = Field(default_factory=dict)
 
 
 class MediaSummary(ApiModel):
