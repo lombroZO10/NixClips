@@ -62,14 +62,6 @@ def diarize(audio_path: Path) -> dict:
     if not token:
         return {"backend": "unavailable", "segments": []}
     try:
-        # Some Windows CPU wheels omit torchvision's optional NMS registration;
-        # pyannote only needs the package import for its audio pipeline.
-        try:
-            import torch
-            library = torch.library.Library("torchvision", "DEF")
-            library.define("nms(Tensor boxes, Tensor scores, float iou_threshold) -> Tensor")
-        except Exception:
-            pass
         from pyannote.audio import Pipeline
         pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=token)
         diarization = pipeline(str(audio_path))
