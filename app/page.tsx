@@ -23,7 +23,7 @@ export default function Home() {
         <nav className="main-nav" aria-label="Navegação principal">
           <a href="#motor">Motor AI</a><a href="#workflow">Workflow</a><a href="#recursos">Recursos</a>
         </nav>
-        <div className="header-actions"><Link className="header-login" href="/login">Entrar</Link><Link className="header-cta" href="/signup">Criar conta grátis <ArrowRight size={16} /></Link></div>
+        <div className="header-actions"><a className="header-login" href="/login">Entrar</a><a className="header-cta" href="/signup">Criar conta grátis <ArrowRight size={16} /></a></div>
       </header>
 
       <section className="hero-section">
@@ -38,13 +38,13 @@ export default function Home() {
               <span className="private-pill"><Check size={12} /> Processamento privado</span>
             </div>
             <div className="source-row">
-              <Link className="link-field" href="/signup"><Link2 size={18} /><span>Cole um link público do YouTube</span></Link>
+              <a className="link-field" href="/signup"><Link2 size={18} /><span>Cole um link público do YouTube</span></a>
               <span className="source-divider">ou</span>
               <Link className="upload-button" href="/studio?source=upload"><Upload size={17} /> Enviar arquivo</Link>
             </div>
             <div className="composer-footer">
               <span>MP4, MOV, MKV e WebM</span><span className="footer-dot" /><span>Até 4K</span>
-              <Link href="/signup">Começar agora <ArrowRight size={13} /></Link>
+              <a href="/signup">Começar agora <ArrowRight size={13} /></a>
             </div>
           </div>
 
