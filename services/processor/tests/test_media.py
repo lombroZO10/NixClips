@@ -1,4 +1,5 @@
-from nixclip_processor.media import ass_color, crop_geometry, drawtext_filter, piecewise_focus_expression, target_dimensions, timestamp, write_srt
+from nixclip_processor.media import ass_color, crop_geometry, download_brand_logo, drawtext_filter, piecewise_focus_expression, target_dimensions, timestamp, write_srt
+from nixclip_processor.models import Preferences
 
 
 def test_srt_timestamp_is_stable() -> None:
@@ -60,3 +61,7 @@ def test_srt_can_apply_template_uppercase(tmp_path) -> None:
 def test_brand_drawtext_escapes_ffmpeg_delimiters() -> None:
     rendered = drawtext_filter("Siga: Nix's", "h*.82", 20, "0x7c2cff@.8")
     assert "Siga\\: Nix\\'s" in rendered
+
+
+def test_missing_brand_logo_is_ignored(tmp_path) -> None:
+    assert download_brand_logo(Preferences(), tmp_path) is None

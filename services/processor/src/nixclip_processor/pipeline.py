@@ -12,7 +12,7 @@ from typing import Callable
 
 from .config import settings
 from .curation import curate_transcript
-from .media import probe_media, render_clip, write_srt
+from .media import download_brand_logo, probe_media, render_clip, write_srt
 from .models import ProjectJob, Stage
 from .repository import repository
 from .visual import analyze_video, enrich_transcript
@@ -155,6 +155,7 @@ class Pipeline:
 
             await self._update(job, Stage.REFINE, 68, "Ajustando os cortes aos limites das frases")
             await self._update(job, Stage.RENDER, 74, "Renderizando vídeos verticais")
+            logo_path = await asyncio.to_thread(download_brand_logo, job.preferences, project_dir)
             for index, clip in enumerate(job.clips):
                 subtitle = project_dir / f"{clip.id}.srt"
                 output = project_dir / f"{clip.id}.mp4"
@@ -162,7 +163,7 @@ class Pipeline:
                 render_started_at = time.monotonic()
                 try:
                     render_task = asyncio.create_task(asyncio.to_thread(
-                        render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, subtitle,
+                        render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, subtitle, logo_path,
                     ))
                     while not render_task.done():
                         try:
@@ -177,7 +178,7 @@ class Pipeline:
                     clip.reframe_mode = await render_task
                 except Exception:
                     clip.reframe_mode = await asyncio.to_thread(
-                        render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, None,
+                        render_clip, source, output, clip.start_ms, clip.end_ms, job.preferences, None, logo_path,
                     )
                 clip.output_url = f"/media/{job.id}/{output.name}"
                 progress = 74 + round(24 * (index + 1) / len(job.clips))

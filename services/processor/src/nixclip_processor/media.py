@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import statistics
 import subprocess
+from urllib.parse import urlparse
+from urllib.request import urlopen
 from pathlib import Path
 
 from .config import settings
@@ -31,7 +33,7 @@ def probe_media(source: Path) -> MediaSummary:
 
 def render_clip(
     source: Path, destination: Path, start_ms: int, end_ms: int,
-    preferences: Preferences, subtitle_path: Path | None = None,
+    preferences: Preferences, subtitle_path: Path | None = None, logo_path: Path | None = None,
 ) -> str:
     source_width, source_height = source_dimensions(source)
     # Do not spend CPU and bitrate manufacturing pixels that do not exist in a
@@ -86,12 +88,14 @@ def render_clip(
     if cta:
         filters.append(drawtext_filter(cta, y="h*0.82", fontsize=20, box_color="0x7c2cff@0.86"))
     destination.parent.mkdir(parents=True, exist_ok=True)
-    command = [
-        settings.ffmpeg, "-y", "-ss", f"{start_ms / 1000:.3f}", "-i", str(source),
-        "-t", f"{(end_ms - start_ms) / 1000:.3f}", "-vf", ",".join(filters),
-        "-c:v", "libx264", "-preset", "superfast", "-crf", "20", "-c:a", "aac", "-b:a", "160k",
-        "-movflags", "+faststart", str(destination),
-    ]
+    command = [settings.ffmpeg, "-y", "-ss", f"{start_ms / 1000:.3f}", "-i", str(source)]
+    if logo_path and logo_path.exists():
+        logo_size = max(64, round(width * .16))
+        base = ",".join(filters)
+        command += ["-loop", "1", "-i", str(logo_path), "-filter_complex", f"[0:v]{base}[base];[1:v]scale={logo_size}:-1[logo];[base][logo]overlay=W-w-28:28[outv]", "-map", "[outv]", "-map", "0:a?", "-shortest"]
+    else:
+        command += ["-vf", ",".join(filters)]
+    command += ["-t", f"{(end_ms - start_ms) / 1000:.3f}", "-c:v", "libx264", "-preset", "superfast", "-crf", "20", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", str(destination)]
     subprocess.run(command, check=True, capture_output=True)
     return reframe_mode
 
@@ -236,3 +240,23 @@ def ass_color(value: str, fallback: str) -> str:
 def drawtext_filter(text: str, y: str, fontsize: int, box_color: str) -> str:
     safe = text.replace("\\", "\\\\").replace("'", "\\'").replace(":", "\\:")
     return f"drawtext=text='{safe}':fontcolor=white:fontsize={fontsize}:x=(w-text_w)/2:y={y}:box=1:boxcolor={box_color}:boxborderw=12"
+
+
+def download_brand_logo(preferences: Preferences, destination: Path) -> Path | None:
+    url = preferences.brand_template.get("brandLogoUrl")
+    if not isinstance(url, str) or urlparse(url).scheme != "https":
+        return None
+    try:
+        with urlopen(url, timeout=15) as response:
+            content_type = response.headers.get_content_type()
+            if content_type not in {"image/png", "image/jpeg", "image/webp"}:
+                return None
+            data = response.read(5 * 1024 * 1024 + 1)
+        if not data or len(data) > 5 * 1024 * 1024:
+            return None
+        suffix = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}[content_type]
+        target = destination / f"brand-logo{suffix}"
+        target.write_bytes(data)
+        return target
+    except Exception:
+        return None

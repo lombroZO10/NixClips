@@ -9,7 +9,15 @@ async function applyTemplate(supabase: NonNullable<Awaited<ReturnType<typeof get
   const { data: template } = await supabase.from('brand_templates').select('settings').eq('id', templateId).eq('owner_id', userId).single();
   if (!template) throw new Error('Modelo de marca não encontrado.');
   const settings = template.settings as Record<string, unknown>;
-  return { ...preferences, aspectRatio: settings.aspectRatio ?? preferences.aspectRatio, autoReframe: settings.layout === 'fit' ? false : preferences.autoReframe, brandTemplate: settings };
+  let brandLogoUrl: string | undefined;
+  if (typeof settings.brandAssetId === 'string' && settings.brandAssetId) {
+    const { data: asset } = await supabase.from('brand_assets').select('storage_path').eq('id', settings.brandAssetId).eq('owner_id', userId).single();
+    if (!asset) throw new Error('Logo do modelo não encontrado.');
+    const { data: signed, error } = await supabase.storage.from('brand-assets').createSignedUrl(asset.storage_path, 86_400);
+    if (error || !signed?.signedUrl) throw new Error('Não foi possível preparar o logo do modelo.');
+    brandLogoUrl = signed.signedUrl;
+  }
+  return { ...preferences, aspectRatio: settings.aspectRatio ?? preferences.aspectRatio, autoReframe: settings.layout === 'fit' ? false : preferences.autoReframe, brandTemplate: { ...settings, brandLogoUrl } };
 }
 
 export async function POST(request: Request) {

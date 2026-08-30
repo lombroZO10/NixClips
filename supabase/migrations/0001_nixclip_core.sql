@@ -52,6 +52,26 @@ alter table public.brand_templates enable row level security;
 drop policy if exists "brand templates owner access" on public.brand_templates;
 create policy "brand templates owner access" on public.brand_templates for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
+create table if not exists public.brand_assets (
+  id uuid primary key default gen_random_uuid(), owner_id uuid not null references auth.users(id) on delete cascade,
+  name text not null, kind text not null check (kind in ('logo')), storage_path text not null unique,
+  content_type text not null, size_bytes integer not null check (size_bytes > 0), created_at timestamptz not null default now()
+);
+create index if not exists brand_assets_owner_idx on public.brand_assets(owner_id, created_at desc);
+alter table public.brand_assets enable row level security;
+drop policy if exists "brand assets owner access" on public.brand_assets;
+create policy "brand assets owner access" on public.brand_assets for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('brand-assets', 'brand-assets', false, 5242880, array['image/png', 'image/jpeg', 'image/webp'])
+on conflict (id) do nothing;
+drop policy if exists "brand assets storage select" on storage.objects;
+drop policy if exists "brand assets storage insert" on storage.objects;
+drop policy if exists "brand assets storage delete" on storage.objects;
+create policy "brand assets storage select" on storage.objects for select using (bucket_id = 'brand-assets' and owner_id = auth.uid());
+create policy "brand assets storage insert" on storage.objects for insert with check (bucket_id = 'brand-assets' and owner_id = auth.uid());
+create policy "brand assets storage delete" on storage.objects for delete using (bucket_id = 'brand-assets' and owner_id = auth.uid());
+
 alter table public.profiles enable row level security;
 alter table public.projects enable row level security;
 alter table public.clips enable row level security;
