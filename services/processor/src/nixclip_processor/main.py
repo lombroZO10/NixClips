@@ -68,6 +68,7 @@ async def health() -> dict:
             },
             "clients": settings.youtube_clients,
             "concurrency_limit": max(1, settings.youtube_download_concurrency),
+            "proxy_configured": bool(settings.youtube_proxy_url),
         },
     }
 

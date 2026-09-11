@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     youtube_cookie_file: Path | None = None
     youtube_player_clients: str = "mweb,web_embedded,tv,android"
     youtube_pot_provider_url: str = "http://127.0.0.1:4416"
+    youtube_proxy_url: str | None = None
     youtube_download_concurrency: int = 1
     youtube_download_delay: float = 15.0
     youtube_sleep_requests: float = 2.0

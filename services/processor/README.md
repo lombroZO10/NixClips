@@ -17,6 +17,25 @@ O importador usa uma fila serial por padrão e adiciona:
 
 O comportamento dos clients não é equivalente. `mweb` com provider PO é o principal. `web_embedded` funciona apenas para vídeos incorporáveis. `tv` pode devolver somente formatos SABR/DRM dependendo da sessão, e `android` não aceita cookies de conta; por isso ele é usado sem o arquivo de cookies e apenas como último fallback para conteúdo público.
 
+### Proxy residencial/mobile (recomendado em VPS)
+
+Cookie válido e PO token resolvem o desafio "confirme que você não é um robô", mas não mudam o IP de origem. VPS de datacenter (Hetzner, OVH, DigitalOcean, Contabo etc.) ficam em ranges que o Google já trata como suspeitos por padrão — é comum o bloqueio voltar mesmo com toda a stack acima funcionando, simplesmente porque o IP é de datacenter.
+
+A forma prática de resolver isso é rotear o download do yt-dlp por um proxy residencial ou mobile (ex.: Webshare, IPRoyal, Smartproxy, Bright Data). Configure:
+
+```bash
+NIXCLIP_YOUTUBE_PROXY_URL=http://usuario:senha@gate.provedor-proxy.com:8000
+```
+
+O worker já repassa isso para o yt-dlp (`proxy` em `youtube_download.py`) e o `/health` expõe `youtube.proxy_configured` para diagnóstico, sem vazar a URL/credenciais.
+
+Duas ressalvas importantes:
+
+1. **Sticky session**: prefira um plano com IP fixo por sessão (não rotacionar a cada request) — trocar de IP no meio de uma sessão autenticada com cookies é, por si só, um sinal de risco para o BotGuard.
+2. **Provider PO no mesmo IP**: o `bgutil-ytdlp-pot-provider` também faz requisições ao YouTube para gerar o token; idealmente ele deve sair pelo mesmo IP usado no download real (configure o proxy também no container do provider via `HTTP_PROXY`/`HTTPS_PROXY`), senão o token pode não bater com a sessão/IP que o YouTube observa depois.
+
+Sem proxy, a alternativa mais barata é reduzir ainda mais a frequência (`NIXCLIP_YOUTUBE_DOWNLOAD_DELAY`, `NIXCLIP_YOUTUBE_RATE_LIMIT_COOLDOWN`) e aceitar uma taxa de bloqueio maior — não existe combinação de cookie/client/backoff que neutralize um IP de datacenter já sinalizado.
+
 ## Instalação recomendada — Ubuntu 22.04 + Docker
 
 Instale Docker Engine e o plugin Compose pelo repositório oficial:
@@ -129,6 +148,7 @@ Copie `config.example.env` para `.env`. Os controles principais são:
 | Variável | Padrão | Finalidade |
 |---|---:|---|
 | `NIXCLIP_YOUTUBE_PLAYER_CLIENTS` | `mweb,web_embedded,tv,android` | ordem dos fallbacks |
+| `NIXCLIP_YOUTUBE_PROXY_URL` | — | proxy residencial/mobile para o egress do yt-dlp |
 | `NIXCLIP_YOUTUBE_DOWNLOAD_CONCURRENCY` | `1` | downloads simultâneos |
 | `NIXCLIP_YOUTUBE_DOWNLOAD_DELAY` | `15` | segundos mínimos entre downloads |
 | `NIXCLIP_YOUTUBE_SLEEP_REQUESTS` | `2` | pausa interna entre requests do extractor |

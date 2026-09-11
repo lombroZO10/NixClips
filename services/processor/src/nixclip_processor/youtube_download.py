@@ -290,6 +290,8 @@ class YoutubeDownloader:
             "file_access_retries": 2,
             "socket_timeout": 30,
         }
+        if self.config.youtube_proxy_url:
+            options["proxy"] = self.config.youtube_proxy_url
         if progress:
             options["progress_hooks"] = [progress]
         with ExitStack() as resources:
